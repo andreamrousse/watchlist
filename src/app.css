@@ -71,8 +71,12 @@
 	--shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
 
 	/* Layout */
-	--layout-page-max: 40rem;
-	--layout-page-narrow-max: 22rem;
+	--layout-page-max: 44rem;
+	--layout-page-narrow-max: 24rem;
+	--layout-padding-block: var(--space-2xl);
+	--layout-padding-block-sm: var(--space-xl);
+	--layout-padding-inline: var(--space-lg);
+	--layout-shell-gap: var(--space-2xl);
 	--layout-break-sm: 520px;
 
 	/* Motion */
@@ -137,15 +141,18 @@ a:hover {
 	opacity: 0.85;
 }
 
-/* Layout utilities */
+/* Layout utilities — centered column, comfortable measure, spacing tokens */
 .page {
+	width: 100%;
 	max-width: var(--layout-page-max);
-	margin: 0 auto;
-	padding: var(--space-xl) var(--space-md);
+	box-sizing: border-box;
+	margin-inline: auto;
+	padding-block: var(--layout-padding-block);
+	padding-inline: var(--layout-padding-inline);
 }
 
 .page-narrow {
-	max-width: var(--layout-page-narrow-max);
+	max-width: min(100%, var(--layout-page-narrow-max));
 }
 
 .shell-top {
@@ -154,7 +161,7 @@ a:hover {
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: var(--space-md);
-	margin-bottom: var(--space-xl);
+	margin-bottom: var(--layout-shell-gap);
 }
 
 .brand-heading {
@@ -197,6 +204,11 @@ a:hover {
 }
 
 @media (max-width: var(--layout-break-sm)) {
+	.page {
+		padding-block: var(--layout-padding-block-sm);
+		padding-inline: var(--space-md);
+	}
+
 	.shell-session {
 		align-items: flex-start;
 		width: 100%;
@@ -211,7 +223,7 @@ a:hover {
 }
 
 .section {
-	margin-bottom: var(--space-2xl);
+	margin-bottom: var(--space-3xl);
 }
 
 .section-title-inner {
