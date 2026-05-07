@@ -81,7 +81,9 @@
 
 	/* Motion */
 	--duration-fast: 120ms;
+	--duration-micro: 180ms;
 	--ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -387,22 +389,53 @@ a:hover {
 }
 
 .button-remove {
+	cursor: pointer;
 	padding: var(--space-2xs) var(--space-sm);
 	font-size: var(--font-size-xs);
 	font-weight: var(--font-weight-medium);
 	color: var(--color-error);
 	background: transparent;
 	border: var(--border-width) solid color-mix(in srgb, var(--color-error) 45%, transparent);
+	border-radius: var(--radius-sm);
+	box-shadow: none;
+	transform: translateY(0);
 	transition:
-		color var(--duration-fast) var(--ease-default),
-		border-color var(--duration-fast) var(--ease-default),
-		background var(--duration-fast) var(--ease-default);
+		transform var(--duration-micro) var(--ease-soft),
+		color var(--duration-micro) var(--ease-default),
+		border-color var(--duration-micro) var(--ease-default),
+		background var(--duration-micro) var(--ease-default),
+		box-shadow var(--duration-micro) var(--ease-default);
 }
 
 .button-remove:hover:not(:disabled) {
 	color: var(--color-text);
 	border-color: var(--color-error);
 	background: var(--color-error-subtle);
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-xs);
+}
+
+.button-remove:active:not(:disabled) {
+	transform: translateY(0) scale(0.98);
+	box-shadow: none;
+}
+
+.button-remove:focus-visible {
+	outline: var(--ring-width) solid color-mix(in srgb, var(--color-error) 55%, transparent);
+	outline-offset: var(--ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.button-remove {
+		transition-property: color, border-color, background;
+		transition-duration: var(--duration-fast);
+	}
+
+	.button-remove:hover:not(:disabled),
+	.button-remove:active:not(:disabled) {
+		transform: none;
+		box-shadow: none;
+	}
 }
 
 .sr-only {
