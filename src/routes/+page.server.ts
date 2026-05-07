@@ -8,6 +8,7 @@ export const load: PageServerLoad = async (event) => {
 	if (!user) {
 		return redirect(302, '/login');
 	}
+	await movies.backfillTmdbForUser(user.id);
 	const list = await movies.listMoviesForUser(user.id);
 	return { user, movies: list };
 };
@@ -20,7 +21,14 @@ export const actions: Actions = {
 		}
 		const formData = await event.request.formData();
 		const title = formData.get('title')?.toString() ?? '';
-		const result = await movies.createMovie(user.id, title);
+		const tmdbParts = movies.parseTmdbPayloadFromForm(formData);
+		if (!tmdbParts.ok) {
+			return fail(400, { message: tmdbParts.error });
+		}
+		const result = await movies.createMovie(user.id, title, {
+			tmdbId: tmdbParts.tmdbId,
+			posterPath: tmdbParts.posterPath
+		});
 		if (!result.ok) {
 			return fail(400, { message: result.error });
 		}
