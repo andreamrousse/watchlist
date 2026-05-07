@@ -1,8 +1,9 @@
 /* Design tokens — visual foundation (light default; dark overrides below) */
 :root {
-	/* Typography: families */
+	/* Typography: families — Open Sans: https://fonts.google.com/specimen/Open+Sans */
 	--font-sans:
-		system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
+		'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans',
+		sans-serif;
 	--font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
 
 	/* Typography: scale */
