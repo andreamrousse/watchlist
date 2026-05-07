@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { ActionData } from './$types';
+	import Film from 'lucide-svelte/icons/film';
+	import LogIn from 'lucide-svelte/icons/log-in';
+	import UserPlus from 'lucide-svelte/icons/user-plus';
 
 	let { form }: { form: ActionData } = $props();
 </script>
@@ -10,8 +13,11 @@
 </svelte:head>
 
 <main class="page page-narrow">
-	<h1 class="page-title">Watchlist</h1>
-	<p class="muted">Sign in or create an account with email and password.</p>
+	<h1 class="brand-heading login-brand">
+		<Film size={22} strokeWidth={1.65} class="icon-muted" aria-hidden="true" />
+		Watchlist
+	</h1>
+	<p class="muted login-lead">Sign in or create an account with email and password.</p>
 
 	<form method="post" action="?/signInEmail" class="stack" use:enhance>
 		<div class="field">
@@ -34,9 +40,17 @@
 			<input id="name" name="name" type="text" autocomplete="name" class="input" />
 		</div>
 		<div class="button-row">
-			<button type="submit" class="button">Sign in</button>
-			<button type="submit" formaction="?/signUpEmail" class="button button-secondary">
-				Register
+			<button type="submit" class="button button-has-icon">
+				<LogIn size={18} strokeWidth={1.65} aria-hidden="true" />
+				<span>Sign in</span>
+			</button>
+			<button
+				type="submit"
+				formaction="?/signUpEmail"
+				class="button button-secondary button-has-icon"
+			>
+				<UserPlus size={18} strokeWidth={1.65} aria-hidden="true" />
+				<span>Register</span>
 			</button>
 		</div>
 	</form>
