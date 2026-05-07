@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { movie } from '$lib/server/db/schema';
 
@@ -9,6 +9,13 @@ export type MovieRow = {
 	title: string;
 	createdAt: Date;
 };
+
+function parseMovieId(raw: FormDataEntryValue | null): number | null {
+	if (raw === null || typeof raw !== 'string') return null;
+	const n = Number(raw);
+	if (!Number.isInteger(n) || n <= 0) return null;
+	return n;
+}
 
 function normalizeTitle(raw: string): string | null {
 	const t = raw.trim();
@@ -46,4 +53,25 @@ export async function createMovie(
 		return { ok: false, error: 'Could not add movie.' };
 	}
 	return { ok: true, row };
+}
+
+export async function deleteMovieForUser(
+	userId: string,
+	rawId: FormDataEntryValue | null
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	const movieId = parseMovieId(rawId);
+
+	if (!movieId) {
+		return { ok: false, error: 'Invalid movie id.' };
+	}
+
+	const [removed] = await db
+		.delete(movie)
+		.where(and(eq(movie.id, movieId), eq(movie.userId, userId)))
+		.returning({ id: movie.id });
+
+	if (!removed) {
+		return { ok: false, error: 'Movie not found or already removed.' };
+	}
+	return { ok: true };
 }

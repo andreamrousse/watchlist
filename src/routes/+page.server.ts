@@ -26,6 +26,19 @@ export const actions: Actions = {
 		}
 		return { ok: true as const };
 	},
+	deleteMovie: async (event) => {
+		const user = event.locals.user;
+		if (!user) {
+			return fail(401, { message: 'Sign in required.' });
+		}
+		const formData = await event.request.formData();
+		const rawId = formData.get('movieId');
+		const result = await movies.deleteMovieForUser(user.id, rawId);
+		if (!result.ok) {
+			return fail(400, { message: result.error });
+		}
+		return { ok: true as const };
+	},
 	signOut: async (event) => {
 		await auth.api.signOut({
 			headers: event.request.headers

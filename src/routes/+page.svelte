@@ -20,6 +20,10 @@
 		</form>
 	</header>
 
+	{#if form?.message}
+		<p class="error-text alert-global" role="alert">{form.message}</p>
+	{/if}
+
 	<section class="section" aria-labelledby="add-heading">
 		<h2 id="add-heading" class="section-title">Add a movie</h2>
 		<form
@@ -48,9 +52,6 @@
 			/>
 			<button type="submit" class="button" disabled={submitting}>Add</button>
 		</form>
-		{#if form?.message}
-			<p class="error-text" role="alert">{form.message}</p>
-		{/if}
 	</section>
 
 	<section class="section" aria-labelledby="list-heading">
@@ -60,7 +61,17 @@
 		{:else}
 			<ul class="movie-list">
 				{#each data.movies as m (m.id)}
-					<li class="movie-item">{m.title}</li>
+					<li class="movie-item">
+						<div class="movie-item-row">
+							<span class="movie-item-title">{m.title}</span>
+							<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
+								<input type="hidden" name="movieId" value={m.id} />
+								<button type="submit" class="button button-remove" aria-label={`Remove ${m.title}`}>
+									Delete
+								</button>
+							</form>
+						</div>
+					</li>
 				{/each}
 			</ul>
 		{/if}
