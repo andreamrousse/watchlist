@@ -77,7 +77,7 @@
 	--layout-padding-block-sm: var(--space-xl);
 	--layout-padding-inline: var(--space-lg);
 	--layout-shell-gap: var(--space-2xl);
-	--layout-break-sm: 520px;
+	--layout-break-sm: 520px; /* @media breakpoints: use literal 520px (lightningcss minify) */
 
 	/* Motion */
 	--duration-fast: 120ms;
@@ -205,7 +205,7 @@ a:hover {
 	white-space: nowrap;
 }
 
-@media (max-width: var(--layout-break-sm)) {
+@media (max-width: 520px) {
 	.page {
 		padding-block: var(--layout-padding-block-sm);
 		padding-inline: var(--space-md);
