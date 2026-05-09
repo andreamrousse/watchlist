@@ -4,10 +4,8 @@
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
 	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, type MovieStatus } from '$lib/movie-status';
-	import CirclePlus from 'lucide-svelte/icons/circle-plus';
 	import Film from 'lucide-svelte/icons/film';
 	import ImageOff from 'lucide-svelte/icons/image-off';
-	import List from 'lucide-svelte/icons/list';
 	import Plus from 'lucide-svelte/icons/plus';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down';
@@ -178,20 +176,16 @@
 	<title>Moviemate</title>
 </svelte:head>
 
-<main class="page">
+<main class="page page--stacked-sections">
 	{#if form?.message}
 		<p class="error-text alert-global" role="alert">{form.message}</p>
 	{/if}
 
-	<section class="section" aria-labelledby="add-heading">
-		<h2 id="add-heading" class="section-title">
-			<span class="section-title-inner">
-				<CirclePlus size={18} strokeWidth={1.65} class="icon-muted" aria-hidden="true" />
-				Add a movie
-			</span>
-		</h2>
+	<section class="section section-panel" aria-labelledby="add-heading">
+		<h2 id="add-heading" class="section-title">Add a movie</h2>
 		<p class="muted add-lead">
-			Start typing a title — suggestions appear from TMDB. Pick a film to add.
+			What do you feel like watching? Start typing and we’ll suggest a few titles—add the one you
+			meant.
 		</p>
 		<div class="search-field-wrap">
 			<label class="sr-only" for="q">Search movies</label>
@@ -282,13 +276,8 @@
 		{/if}
 	</section>
 
-	<section class="section" aria-labelledby="list-heading">
-		<h2 id="list-heading" class="section-title">
-			<span class="section-title-inner">
-				<List size={18} strokeWidth={1.65} class="icon-muted" aria-hidden="true" />
-				Your list
-			</span>
-		</h2>
+	<section class="section section-panel" aria-labelledby="list-heading">
+		<h2 id="list-heading" class="section-title">Watchlist</h2>
 		{#if data.movies.length === 0}
 			<p class="muted">No movies yet. Search above and add a film.</p>
 		{:else}

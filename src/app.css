@@ -560,21 +560,40 @@ a:hover {
 	letter-spacing: var(--letter-spacing-tight);
 }
 
+.page--stacked-sections {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2xl);
+}
+
+.page--stacked-sections .section {
+	margin-bottom: 0;
+}
+
 .section {
 	margin-bottom: var(--space-3xl);
 }
 
-.section-title-inner {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-xs);
-	vertical-align: middle;
+.section-panel {
+	background: var(--color-surface);
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-xl);
+	padding: var(--space-lg);
+	box-shadow: var(--shadow-xs);
+}
+
+@media (max-width: 520px) {
+	.section-panel {
+		padding: var(--space-md);
+	}
 }
 
 .section-title {
-	font-size: var(--font-size-md);
+	font-size: var(--font-size-xl);
 	font-weight: var(--font-weight-semibold);
 	margin: 0 0 var(--space-md);
+	letter-spacing: var(--letter-spacing-tight);
+	line-height: var(--line-height-tight);
 }
 
 .muted {
@@ -1132,6 +1151,8 @@ a:hover {
 .add-lead {
 	margin-top: 0;
 	margin-bottom: var(--space-md);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-relaxed);
 }
 
 .search-field-wrap {
