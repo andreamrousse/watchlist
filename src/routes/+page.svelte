@@ -606,7 +606,8 @@
 										<input type="hidden" name="status" value={m.status} />
 										<span class="sr-only" id={`movie-status-lbl-${m.id}`}>Watch status for {m.title}</span>
 										<div
-											class={`movie-status-select-wrap movie-status-select-wrap--${m.status}`}
+											class={`movie-status-select-wrap movie-status-select-wrap--${m.status}` +
+												(statusDropdownMovieId === m.id ? ' movie-status-select-wrap--open' : '')}
 											data-movie-status-dropdown
 										>
 											<button
@@ -624,6 +625,7 @@
 												<span class="movie-status-dropdown-trigger-value" id={`movie-status-${m.id}-trigger-value`}
 													>{MOVIE_STATUS_LABELS[m.status]}</span
 												>
+												<ChevronDown class="movie-status-dropdown-chevron" size={13} strokeWidth={2} aria-hidden="true" />
 											</button>
 											{#if statusDropdownMovieId === m.id}
 												<div
@@ -635,7 +637,7 @@
 													{#each MOVIE_STATUSES as s (s)}
 														<button
 															type="button"
-															class="movie-status-dropdown-item"
+															class={`movie-status-dropdown-item movie-status-dropdown-item--${s}`}
 															class:movie-status-dropdown-item--selected={s === m.status}
 															role="menuitemradio"
 															aria-checked={s === m.status}
