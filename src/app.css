@@ -101,6 +101,10 @@ html[data-theme='dark'] {
 	--color-user-avatar-fg: #faf8ff;
 	--color-user-avatar-border: #44367d;
 	--color-user-avatar-hover-bg: #352a62;
+
+	/* Delete / undo toast — distinct from neutral panels */
+	--color-delete-toast-bg: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface));
+	--color-delete-toast-border: color-mix(in srgb, var(--color-accent) 52%, var(--color-border-strong));
 }
 
 html[data-theme='light'] {
@@ -138,6 +142,9 @@ html[data-theme='light'] {
 	--color-user-avatar-fg: #fcfaff;
 	--color-user-avatar-border: #2e265f;
 	--color-user-avatar-hover-bg: #473a8c;
+
+	--color-delete-toast-bg: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+	--color-delete-toast-border: color-mix(in srgb, var(--color-accent) 28%, var(--color-border-strong));
 }
 
 *,
@@ -920,9 +927,11 @@ a:hover {
 	width: 100%;
 	padding: var(--space-sm) var(--space-md);
 	border-radius: var(--radius-lg);
-	border: var(--border-width) solid var(--color-border);
-	background: var(--color-surface-raised);
-	box-shadow: var(--shadow-md);
+	border: var(--border-width) solid var(--color-delete-toast-border);
+	background: var(--color-delete-toast-bg);
+	box-shadow:
+		var(--shadow-md),
+		0 0 28px color-mix(in srgb, var(--color-accent) 10%, transparent);
 	box-sizing: border-box;
 }
 
