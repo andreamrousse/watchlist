@@ -4,6 +4,7 @@
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
 	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, MOVIE_STATUS_SHORT_LABELS, type MovieStatus } from '$lib/movie-status';
+	import FilterX from 'lucide-svelte/icons/filter-x';
 	import Film from 'lucide-svelte/icons/film';
 	import ImageOff from 'lucide-svelte/icons/image-off';
 	import Keyboard from 'lucide-svelte/icons/keyboard';
@@ -28,7 +29,7 @@
 
 	const SORT_OPTION_LABELS: Record<ListSortMode, string> = {
 		date_added: 'Date added',
-		public_score: 'TMDB score',
+		public_score: 'Average rating',
 		alphabetically: 'Alphabetically'
 	};
 
@@ -407,7 +408,17 @@
 	<section class="section section-panel" aria-labelledby="list-heading">
 		<h2 id="list-heading" class="section-title">Watchlist</h2>
 		{#if data.movies.length === 0}
-			<p class="muted">No movies yet. Search above and add a film.</p>
+			<div class="watchlist-empty" role="status">
+				<div class="watchlist-empty-icon-wrap" aria-hidden="true">
+					<Film size={26} strokeWidth={1.5} class="watchlist-empty-icon icon-muted" />
+				</div>
+				<div class="watchlist-empty-body">
+					<p class="watchlist-empty-title">No movies yet</p>
+					<p class="watchlist-empty-detail">
+						Use the search box above to find a title and add it—your picks will appear here.
+					</p>
+				</div>
+			</div>
 		{:else}
 			<div class="list-controls">
 				<div class="list-controls-row">
@@ -479,7 +490,22 @@
 				</div>
 			</div>
 			{#if displayedMovies.length === 0}
-				<p class="muted">No movies match this filter.</p>
+				<div class="watchlist-empty" role="status">
+					<div class="watchlist-empty-icon-wrap" aria-hidden="true">
+						<FilterX size={26} strokeWidth={1.5} class="watchlist-empty-icon icon-muted" />
+					</div>
+					<div class="watchlist-empty-body">
+						<p class="watchlist-empty-title">Nothing in this view</p>
+						<p class="watchlist-empty-detail">
+							{#if listStatusFilter !== 'all'}
+								You don't have anything marked {FILTER_TAB_LABELS[listStatusFilter]} yet. Try
+								another status tab, or add a title from search above.
+							{:else}
+								No titles match right now—try refreshing or adjusting your list above.
+							{/if}
+						</p>
+					</div>
+				</div>
 			{:else}
 				<ul class="movie-list">
 					{#each displayedMovies as m (m.id)}
@@ -513,7 +539,7 @@
 										{#if m.tmdbVoteAverage != null && Number.isFinite(Number(m.tmdbVoteAverage))}
 											{@const tmdbAvg = Number(m.tmdbVoteAverage)}
 											{@const scoreTitle =
-												`TMDB community average ${tmdbAvg.toFixed(1)} out of 10.` +
+												`Community rating ${tmdbAvg.toFixed(1)} out of 10.` +
 												(m.tmdbVoteCount != null && m.tmdbVoteCount > 0
 													? ` ${formatCompactVotes(m.tmdbVoteCount)}`
 													: '')}
