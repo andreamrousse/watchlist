@@ -2,6 +2,7 @@ import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { movie } from '$lib/server/db/schema';
 import { firstSearchHit } from '$lib/server/tmdb';
+import { isMovieStatus, type MovieStatus } from '$lib/movie-status';
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_POSTER_PATH_LENGTH = 255;
@@ -12,6 +13,7 @@ export type MovieRow = {
 	title: string;
 	tmdbId: number | null;
 	posterPath: string | null;
+	status: MovieStatus;
 	createdAt: Date;
 };
 
@@ -56,11 +58,13 @@ export function listMoviesForUser(userId: string): Promise<MovieRow[]> {
 			title: movie.title,
 			tmdbId: movie.tmdbId,
 			posterPath: movie.posterPath,
+			status: movie.status,
 			createdAt: movie.createdAt
 		})
 		.from(movie)
 		.where(eq(movie.userId, userId))
-		.orderBy(desc(movie.createdAt));
+		.orderBy(desc(movie.createdAt))
+		.then((rows): MovieRow[] => rows.map((r) => ({ ...r, status: r.status as MovieStatus })));
 }
 
 export async function createMovie(
@@ -90,12 +94,13 @@ export async function createMovie(
 			title: movie.title,
 			tmdbId: movie.tmdbId,
 			posterPath: movie.posterPath,
+			status: movie.status,
 			createdAt: movie.createdAt
 		});
 	if (!row) {
 		return { ok: false, error: 'Could not add movie.' };
 	}
-	return { ok: true, row };
+	return { ok: true, row: { ...row, status: row.status as MovieStatus } };
 }
 
 export function parseTmdbPayloadFromForm(formData: FormData):
@@ -111,6 +116,38 @@ export function parseTmdbPayloadFromForm(formData: FormData):
 		return { ok: false, error: 'Choose a movie from the search results.' };
 	}
 	return { ok: true, tmdbId, posterPath };
+}
+
+export function parseStatusFromForm(raw: FormDataEntryValue | null): MovieStatus | null {
+	if (raw === null || typeof raw !== 'string') return null;
+	const t = raw.trim();
+	return isMovieStatus(t) ? t : null;
+}
+
+export async function updateMovieStatusForUser(
+	userId: string,
+	rawMovieId: FormDataEntryValue | null,
+	rawStatus: FormDataEntryValue | null
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	const movieId = parseMovieId(rawMovieId);
+	if (!movieId) {
+		return { ok: false, error: 'Invalid movie id.' };
+	}
+	const status = parseStatusFromForm(rawStatus);
+	if (status === null) {
+		return { ok: false, error: 'Invalid status.' };
+	}
+
+	const [updated] = await db
+		.update(movie)
+		.set({ status })
+		.where(and(eq(movie.id, movieId), eq(movie.userId, userId)))
+		.returning({ id: movie.id });
+
+	if (!updated) {
+		return { ok: false, error: 'Movie not found.' };
+	}
+	return { ok: true };
 }
 
 export async function deleteMovieForUser(

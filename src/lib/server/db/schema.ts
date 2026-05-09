@@ -12,6 +12,7 @@ export const movie = pgTable(
 		title: text('title').notNull(),
 		tmdbId: integer('tmdb_id'),
 		posterPath: text('poster_path'),
+		status: text('status').notNull().default('want_to_watch'),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(table) => [index('movie_userId_idx').on(table.userId)]

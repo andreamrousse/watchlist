@@ -34,6 +34,22 @@ export const actions: Actions = {
 		}
 		return { ok: true as const };
 	},
+	updateMovieStatus: async (event) => {
+		const user = event.locals.user;
+		if (!user) {
+			return fail(401, { message: 'Sign in required.' });
+		}
+		const formData = await event.request.formData();
+		const result = await movies.updateMovieStatusForUser(
+			user.id,
+			formData.get('movieId'),
+			formData.get('status')
+		);
+		if (!result.ok) {
+			return fail(400, { message: result.error });
+		}
+		return { ok: true as const };
+	},
 	deleteMovie: async (event) => {
 		const user = event.locals.user;
 		if (!user) {

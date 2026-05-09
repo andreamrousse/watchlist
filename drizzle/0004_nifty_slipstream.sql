@@ -1,0 +1,1 @@
+ALTER TABLE "movie" ADD COLUMN "status" text DEFAULT 'want_to_watch' NOT NULL;

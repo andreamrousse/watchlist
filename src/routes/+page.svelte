@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
+	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS } from '$lib/movie-status';
 	import Film from 'lucide-svelte/icons/film';
 	import CirclePlus from 'lucide-svelte/icons/circle-plus';
 	import ImageOff from 'lucide-svelte/icons/image-off';
@@ -9,6 +10,9 @@
 	import LogOut from 'lucide-svelte/icons/log-out';
 	import Mail from 'lucide-svelte/icons/mail';
 	import Plus from 'lucide-svelte/icons/plus';
+	import Bookmark from 'lucide-svelte/icons/bookmark';
+	import CircleCheck from 'lucide-svelte/icons/circle-check';
+	import Play from 'lucide-svelte/icons/play';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import User from 'lucide-svelte/icons/user';
 
@@ -27,6 +31,7 @@
 	let suggestError = $state<string | null>(null);
 	let suggestHadZero = $state(false);
 	let adding = $state(false);
+	let statusBusy = $state(false);
 
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let abortSuggest: AbortController | undefined;
@@ -79,7 +84,6 @@
 	}
 
 	function handleQueryInput(value: string) {
-		clearTimeout(debounceTimer);
 		clearTimeout(debounceTimer);
 		if (value.trim().length < 2) {
 			abortSuggest?.abort();
@@ -240,6 +244,12 @@
 			<ul class="movie-list">
 				{#each data.movies as m (m.id)}
 					{@const listPoster = posterSrc(m.posterPath, 'w92')}
+					{@const badgeClass =
+						m.status === 'want_to_watch'
+							? 'movie-status-badge--want_to_watch'
+							: m.status === 'watching'
+								? 'movie-status-badge--watching'
+								: 'movie-status-badge--watched'}
 					<li class="movie-item">
 						<div class="movie-item-row">
 							<div class="movie-item-main">
@@ -259,15 +269,70 @@
 										</div>
 									{/if}
 								</div>
-								<span class="movie-item-title">{m.title}</span>
+								<div class="movie-item-copy">
+									<span class="movie-item-title">{m.title}</span>
+									<span class="movie-status-badge {badgeClass}">
+										{#if m.status === 'want_to_watch'}
+											<Bookmark
+												size={14}
+												strokeWidth={2}
+												class="movie-status-icon"
+												aria-hidden="true"
+											/>
+										{:else if m.status === 'watching'}
+											<Play
+												size={14}
+												strokeWidth={2}
+												class="movie-status-icon"
+												aria-hidden="true"
+											/>
+										{:else}
+											<CircleCheck
+												size={14}
+												strokeWidth={2}
+												class="movie-status-icon"
+												aria-hidden="true"
+											/>
+										{/if}
+										{MOVIE_STATUS_LABELS[m.status]}
+									</span>
+								</div>
 							</div>
-							<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
-								<input type="hidden" name="movieId" value={m.id} />
-								<button type="submit" class="button button-remove button-has-icon">
-									<Trash2 size={16} strokeWidth={1.65} aria-hidden="true" />
-									<span>Remove</span>
-								</button>
-							</form>
+							<div class="movie-item-controls">
+								<form
+									method="post"
+									action="?/updateMovieStatus"
+									class="movie-status-form"
+									use:enhance={() => {
+										statusBusy = true;
+										return async ({ update }) => {
+											await update();
+											statusBusy = false;
+										};
+									}}
+								>
+									<input type="hidden" name="movieId" value={m.id} />
+									<label class="sr-only" for={`movie-status-${m.id}`}>Status for {m.title}</label>
+									<select
+										id={`movie-status-${m.id}`}
+										name="status"
+										class="select movie-status-select"
+										disabled={statusBusy}
+										onchange={(e) => e.currentTarget.form?.requestSubmit()}
+									>
+										{#each MOVIE_STATUSES as s (s)}
+											<option value={s} selected={s === m.status}>{MOVIE_STATUS_LABELS[s]}</option>
+										{/each}
+									</select>
+								</form>
+								<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
+									<input type="hidden" name="movieId" value={m.id} />
+									<button type="submit" class="button button-remove button-has-icon">
+										<Trash2 size={16} strokeWidth={1.65} aria-hidden="true" />
+										<span>Remove</span>
+									</button>
+								</form>
+							</div>
 						</div>
 					</li>
 				{/each}
