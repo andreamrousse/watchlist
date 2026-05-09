@@ -407,7 +407,7 @@ a:hover {
 
 .movie-item-row {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	justify-content: space-between;
 	gap: var(--space-md);
 	flex-wrap: wrap;
@@ -422,16 +422,8 @@ a:hover {
 
 .movie-item-main {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: var(--space-md);
-	min-width: 0;
-	flex: 1;
-}
-
-.movie-item-copy {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-2xs);
 	min-width: 0;
 	flex: 1;
 }
@@ -448,69 +440,83 @@ a:hover {
 	margin: 0;
 }
 
-.movie-status-select {
-	min-width: 10rem;
+.movie-status-select-wrap {
+	position: relative;
+	display: inline-flex;
+	max-width: 100%;
+	vertical-align: middle;
+	border-radius: var(--radius-full);
+	color: var(--ms-fg);
+	--ms-bg: var(--color-surface);
+	--ms-fg: var(--color-text);
+	--ms-border: var(--color-border);
 }
 
-.select {
+.movie-status-select-wrap::after {
+	content: '';
+	position: absolute;
+	right: var(--space-md);
+	top: 50%;
+	width: 0.5rem;
+	height: 0.5rem;
+	margin-top: -0.35rem;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: rotate(45deg);
+	opacity: 0.55;
+	pointer-events: none;
+}
+
+.movie-status-select-wrap--want_to_watch {
+	--ms-bg: var(--color-status-want-bg);
+	--ms-fg: var(--color-status-want-text);
+	--ms-border: color-mix(in srgb, var(--color-status-want-text) 32%, transparent);
+}
+
+.movie-status-select-wrap--watching {
+	--ms-bg: var(--color-status-watching-bg);
+	--ms-fg: var(--color-status-watching-text);
+	--ms-border: var(--color-status-watching-border);
+}
+
+.movie-status-select-wrap--watched {
+	--ms-bg: var(--color-status-watched-bg);
+	--ms-fg: var(--color-status-watched-text);
+	--ms-border: color-mix(in srgb, var(--color-status-watched-text) 35%, transparent);
+}
+
+.movie-status-select {
+	appearance: none;
+	-webkit-appearance: none;
+	margin: 0;
+	min-width: 11rem;
+	max-width: 100%;
+	padding: var(--space-xs) 2.25rem var(--space-xs) var(--space-md);
+	border-radius: var(--radius-full);
+	border: var(--border-width) solid var(--ms-border);
+	background-color: var(--ms-bg);
+	color: var(--ms-fg);
 	font: inherit;
-	color: inherit;
-	background: var(--color-surface);
-	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-sm);
-	padding: var(--space-2xs) var(--space-sm);
-	box-shadow: var(--shadow-xs);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	line-height: var(--line-height-tight);
 	cursor: pointer;
+	box-shadow: var(--shadow-xs);
 	transition:
 		border-color var(--duration-fast) var(--ease-default),
 		box-shadow var(--duration-fast) var(--ease-default);
 }
 
-.select:focus {
-	outline: var(--ring-width) solid var(--color-focus-ring);
-	outline-offset: var(--ring-offset);
+.movie-status-select:focus-visible {
+	outline: none;
+	box-shadow:
+		var(--shadow-xs),
+		0 0 0 var(--ring-width) var(--color-focus-ring);
 }
 
-.select:disabled {
+.movie-status-select:disabled {
 	opacity: 0.65;
 	cursor: not-allowed;
-}
-
-.movie-status-badge {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-2xs);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-medium);
-	line-height: 1.28;
-	padding: var(--space-3xs) var(--space-xs);
-	border-radius: var(--radius-full);
-	border: var(--border-width) solid transparent;
-	width: fit-content;
-	max-width: 100%;
-}
-
-.movie-status-badge--want_to_watch {
-	background: var(--color-status-want-bg);
-	color: var(--color-status-want-text);
-	border-color: color-mix(in srgb, var(--color-status-want-text) 28%, transparent);
-}
-
-.movie-status-badge--watching {
-	background: var(--color-status-watching-bg);
-	color: var(--color-status-watching-text);
-	border-color: var(--color-status-watching-border);
-}
-
-.movie-status-badge--watched {
-	background: var(--color-status-watched-bg);
-	color: var(--color-status-watched-text);
-	border-color: color-mix(in srgb, var(--color-status-watched-text) 32%, transparent);
-}
-
-.movie-status-icon {
-	flex-shrink: 0;
-	opacity: 0.95;
 }
 
 @media (max-width: 520px) {
@@ -524,8 +530,13 @@ a:hover {
 		width: 100%;
 	}
 
-	.movie-status-select {
+	.movie-status-select-wrap {
 		flex: 1;
+		min-width: 0;
+	}
+
+	.movie-status-select {
+		width: 100%;
 		min-width: 0;
 	}
 }
