@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { fade, fly } from 'svelte/transition';
-	import { enhance } from '$app/forms';
+	import { applyAction, deserialize, enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
-	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, MOVIE_STATUS_SHORT_LABELS, type MovieStatus } from '$lib/movie-status';
+	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, MOVIE_STATUS_SHORT_LABELS, isMovieStatus, type MovieStatus } from '$lib/movie-status';
 	import MovieStatusIcon from '$lib/MovieStatusIcon.svelte';
 	import FilterX from 'lucide-svelte/icons/filter-x';
 	import Film from 'lucide-svelte/icons/film';
@@ -33,6 +35,31 @@
 	type ListStatusFilter = 'all' | MovieStatus;
 	type ListSortMode = 'date_added' | 'release_year' | 'public_score' | 'alphabetically';
 	type MovieRow = PageServerData['movies'][number];
+
+	type DeleteUndoPayload = {
+		title: string;
+		tmdbId: number;
+		posterPath: string | null;
+		releaseYear: string | null;
+		status: MovieStatus;
+	};
+
+	function pickUndo(raw: unknown): DeleteUndoPayload | undefined {
+		if (typeof raw !== 'object' || raw === null) return;
+		const r = raw as Record<string, unknown>;
+		if (typeof r.title !== 'string' || typeof r.tmdbId !== 'number' || typeof r.status !== 'string')
+			return;
+		if (!isMovieStatus(r.status)) return;
+		const py = r.posterPath;
+		const posterPath = typeof py === 'string' ? py : null;
+		const yr = r.releaseYear;
+		const releaseYear =
+			typeof yr === 'string' && /^\d{4}$/.test(yr.trim()) ? yr.trim() : null;
+		return { title: r.title, tmdbId: r.tmdbId, posterPath, releaseYear, status: r.status };
+	}
+
+	type DeleteToastState = { removedTitle: string; undo?: DeleteUndoPayload };
+	type DeleteToastEntry = DeleteToastState & { id: string };
 
 	const STORAGE_KEY_WATCHLIST_VIEW = 'moviemate.watchlistView';
 
@@ -169,6 +196,91 @@
 			localStorage.setItem(STORAGE_KEY_WATCHLIST_VIEW, next);
 		} catch {
 			/* private mode / quota */
+		}
+	}
+
+	let deleteToastStack = $state<DeleteToastEntry[]>([]);
+	const deleteDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	let undoBusyId = $state<string | null>(null);
+
+	function dismissDeleteToast(id: string): void {
+		const t = deleteDismissTimers.get(id);
+		if (t !== undefined) {
+			clearTimeout(t);
+			deleteDismissTimers.delete(id);
+		}
+		deleteToastStack = deleteToastStack.filter((entry) => entry.id !== id);
+		if (undoBusyId === id) undoBusyId = null;
+	}
+
+	function dismissAllDeleteToasts(): void {
+		for (const id of deleteToastStack.map((e) => e.id)) {
+			const t = deleteDismissTimers.get(id);
+			if (t !== undefined) clearTimeout(t);
+			deleteDismissTimers.delete(id);
+		}
+		deleteToastStack = [];
+		undoBusyId = null;
+	}
+
+	function showDeleteToast(removedTitle: string, undo?: DeleteUndoPayload): void {
+		const id = crypto.randomUUID();
+		deleteDismissTimers.set(
+			id,
+			setTimeout(() => dismissDeleteToast(id), 8200)
+		);
+		deleteToastStack = [...deleteToastStack, { id, removedTitle, undo }];
+	}
+
+	function enhanceMovieDelete() {
+		return async ({
+			result,
+			update
+		}: {
+			result: import('@sveltejs/kit').ActionResult;
+			update: () => Promise<void>;
+		}) => {
+			await update();
+			if (result.type !== 'success' || !result.data || typeof result.data !== 'object') return;
+			const d = result.data as Record<string, unknown>;
+			if (d.ok !== true || typeof d.removedTitle !== 'string') return;
+			showDeleteToast(d.removedTitle, pickUndo(d.undo));
+		};
+	}
+
+	async function submitUndoDelete(id: string): Promise<void> {
+		const entry = deleteToastStack.find((x) => x.id === id);
+		if (!entry?.undo || undoBusyId !== null) return;
+		const u = entry.undo;
+		undoBusyId = id;
+		try {
+			const actionUrl = new URL(`${page.url.pathname}?/addMovie`, page.url.origin).href;
+			const body = new URLSearchParams({
+				title: u.title,
+				tmdbId: String(u.tmdbId),
+				posterPath: u.posterPath ?? '',
+				releaseYear: u.releaseYear ?? '',
+				status: u.status,
+			});
+			const res = await fetch(actionUrl, {
+				method: 'POST',
+				headers: {
+					Accept: 'application/json',
+					'Content-Type': 'application/x-www-form-urlencoded',
+					'x-sveltekit-action': 'true',
+				},
+				body: body.toString(),
+				credentials: 'same-origin',
+				cache: 'no-store',
+			});
+			const result = deserialize(await res.text());
+			if (result.type === 'success') {
+				await invalidateAll();
+			}
+			await applyAction(result);
+			if (result.type === 'success') dismissDeleteToast(id);
+		} finally {
+			if (undoBusyId === id) undoBusyId = null;
 		}
 	}
 
@@ -323,6 +435,7 @@
 		if (e.key === 'Escape') {
 			sortDropdownOpen = false;
 			statusDropdownMovieId = null;
+			dismissAllDeleteToasts();
 		}
 	}}
 />
@@ -772,7 +885,7 @@
 												{/if}
 											</div>
 										</form>
-										<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
+										<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance={enhanceMovieDelete}>
 											<input type="hidden" name="movieId" value={m.id} />
 											<button
 												type="submit"
@@ -904,7 +1017,7 @@
 												{/if}
 											</div>
 										</form>
-										<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
+										<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance={enhanceMovieDelete}>
 											<input type="hidden" name="movieId" value={m.id} />
 											<button
 												type="submit"
@@ -925,3 +1038,40 @@
 		{/if}
 	</section>
 </main>
+
+{#if deleteToastStack.length > 0}
+	<div class="delete-toast-stack" aria-live="polite" aria-relevant="additions">
+		{#each deleteToastStack as toast (toast.id)}
+			<div class="delete-toast" transition:fade={{ duration: 160 }}>
+				<p class="delete-toast-msg">
+					Removed <strong class="delete-toast-title">{toast.removedTitle}</strong>
+				</p>
+				<div class="delete-toast-actions">
+					{#if toast.undo}
+						<button
+							type="button"
+							class="button-secondary delete-toast-undo"
+							disabled={undoBusyId !== null}
+							onclick={() => void submitUndoDelete(toast.id)}
+						>
+							{#if undoBusyId === toast.id}
+								Restoring…
+							{:else}
+								Undo
+							{/if}
+						</button>
+					{/if}
+					<button
+						type="button"
+						class="button-has-icon delete-toast-dismiss"
+						aria-label="Dismiss notification"
+						disabled={undoBusyId === toast.id}
+						onclick={() => dismissDeleteToast(toast.id)}
+					>
+						<X size={14} strokeWidth={1.75} aria-hidden="true" />
+					</button>
+				</div>
+			</div>
+		{/each}
+	</div>
+{/if}

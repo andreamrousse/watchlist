@@ -887,6 +887,108 @@ a:hover {
 	margin-top: 0;
 }
 
+.delete-toast-stack {
+	position: fixed;
+	z-index: 60;
+	bottom: max(
+		1rem,
+		calc(env(safe-area-inset-bottom, 0px) + var(--space-sm, 0.5rem))
+	);
+	left: 50%;
+	transform: translateX(-50%);
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column-reverse;
+	gap: var(--space-xs);
+	width: min(28rem, calc(100vw - 2rem));
+	max-height: calc(100vh - 6rem);
+	overflow-y: auto;
+	pointer-events: none;
+	-webkit-overflow-scrolling: touch;
+}
+
+.delete-toast-stack > .delete-toast {
+	pointer-events: auto;
+	flex-shrink: 0;
+}
+
+.delete-toast {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-sm);
+	width: 100%;
+	padding: var(--space-sm) var(--space-md);
+	border-radius: var(--radius-lg);
+	border: var(--border-width) solid var(--color-border);
+	background: var(--color-surface-raised);
+	box-shadow: var(--shadow-md);
+	box-sizing: border-box;
+}
+
+.delete-toast-msg {
+	margin: 0;
+	flex: 1 1 12rem;
+	min-width: 0;
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-tight);
+	color: var(--color-text);
+}
+
+.delete-toast-title {
+	font-weight: var(--font-weight-semibold);
+}
+
+.delete-toast-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2xs);
+	flex-shrink: 0;
+}
+
+.delete-toast-undo {
+	font-size: var(--font-size-xs);
+	padding: var(--space-2xs) var(--space-sm);
+}
+
+.delete-toast-dismiss {
+	cursor: pointer;
+	opacity: 0.55;
+	color: var(--color-text-muted);
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-sm);
+	padding: var(--space-3xs);
+	margin: 0;
+	font: inherit;
+	line-height: 0;
+}
+
+.delete-toast-dismiss:hover {
+	opacity: 1;
+	color: var(--color-text);
+}
+
+.delete-toast-dismiss:focus-visible {
+	outline: var(--ring-width) solid var(--color-focus-ring);
+	outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+	.delete-toast-stack {
+		width: calc(100vw - 2rem);
+	}
+
+	.delete-toast {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.delete-toast-actions {
+		justify-content: space-between;
+	}
+}
+
 .list-controls {
 	margin-bottom: var(--space-md);
 }

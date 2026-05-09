@@ -34,11 +34,17 @@ export const actions: Actions = {
 		if (!tmdbParts.ok) {
 			return fail(400, { message: tmdbParts.error });
 		}
-		const result = await movies.createMovie(user.id, title, {
-			tmdbId: tmdbParts.tmdbId,
-			posterPath: tmdbParts.posterPath,
-			releaseYear: tmdbParts.releaseYear
-		});
+		const restoredStatus = movies.parseStatusFromForm(formData.get('status'));
+		const result = await movies.createMovie(
+			user.id,
+			title,
+			{
+				tmdbId: tmdbParts.tmdbId,
+				posterPath: tmdbParts.posterPath,
+				releaseYear: tmdbParts.releaseYear
+			},
+			restoredStatus !== null ? { status: restoredStatus } : undefined
+		);
 		if (!result.ok) {
 			return fail(400, { message: result.error });
 		}
@@ -71,7 +77,11 @@ export const actions: Actions = {
 		if (!result.ok) {
 			return fail(400, { message: result.error });
 		}
-		return { ok: true as const };
+		return {
+			ok: true as const,
+			removedTitle: result.removedTitle,
+			...(result.undo !== undefined ? { undo: result.undo } : {})
+		};
 	},
 	signOut: async (event) => {
 		await auth.api.signOut({

@@ -139,7 +139,8 @@ export async function listMoviesForUser(userId: string): Promise<MovieRow[]> {
 export async function createMovie(
 	userId: string,
 	rawTitle: string,
-	tmdb: { tmdbId: number | null; posterPath: string | null; releaseYear: string | null }
+	tmdb: { tmdbId: number | null; posterPath: string | null; releaseYear: string | null },
+	insertOpts?: { status?: MovieStatus }
 ): Promise<{ ok: true; row: MovieRow } | { ok: false; error: string }> {
 	const title = normalizeTitle(rawTitle);
 	if (!title) {
@@ -152,6 +153,7 @@ export async function createMovie(
 
 	const voteStats = await fetchMovieVoteStats(tmdb.tmdbId);
 	const releaseYear = voteStats?.releaseYear ?? tmdb.releaseYear;
+	const statusInsert = insertOpts?.status;
 
 	const [existing] = await db
 		.select({ id: movie.id })
@@ -185,19 +187,29 @@ export async function createMovie(
 		createdAt: movie.createdAt
 	};
 
+	const insertValuesFull = {
+		userId,
+		title,
+		tmdbId: tmdb.tmdbId,
+		posterPath: tmdb.posterPath,
+		tmdbVoteAverage: voteStats?.voteAverage ?? null,
+		tmdbVoteCount: voteStats?.voteCount ?? null,
+		tmdbReleaseYear: releaseYear,
+		...(statusInsert !== undefined ? { status: statusInsert } : {})
+	} as const;
+
+	const insertValuesNoYear = {
+		userId,
+		title,
+		tmdbId: tmdb.tmdbId,
+		posterPath: tmdb.posterPath,
+		tmdbVoteAverage: voteStats?.voteAverage ?? null,
+		tmdbVoteCount: voteStats?.voteCount ?? null,
+		...(statusInsert !== undefined ? { status: statusInsert } : {})
+	} as const;
+
 	try {
-		const [row] = await db
-			.insert(movie)
-			.values({
-				userId,
-				title,
-				tmdbId: tmdb.tmdbId,
-				posterPath: tmdb.posterPath,
-				tmdbVoteAverage: voteStats?.voteAverage ?? null,
-				tmdbVoteCount: voteStats?.voteCount ?? null,
-				tmdbReleaseYear: releaseYear
-			})
-			.returning(returningFull);
+		const [row] = await db.insert(movie).values(insertValuesFull).returning(returningFull);
 		if (!row) {
 			return { ok: false, error: 'Could not add movie.' };
 		}
@@ -211,17 +223,7 @@ export async function createMovie(
 			'createMovie: column tmdb_release_year missing; insert without year. Run `pnpm db:migrate` to add it.'
 		);
 		try {
-			const [row] = await db
-				.insert(movie)
-				.values({
-					userId,
-					title,
-					tmdbId: tmdb.tmdbId,
-					posterPath: tmdb.posterPath,
-					tmdbVoteAverage: voteStats?.voteAverage ?? null,
-					tmdbVoteCount: voteStats?.voteCount ?? null
-				})
-				.returning(returningNoYear);
+			const [row] = await db.insert(movie).values(insertValuesNoYear).returning(returningNoYear);
 			if (!row) {
 				return { ok: false, error: 'Could not add movie.' };
 			}
@@ -306,10 +308,18 @@ export async function updateMovieStatusForUser(
 	return { ok: true };
 }
 
+export type DeletedMovieUndo = {
+	title: string;
+	tmdbId: number;
+	posterPath: string | null;
+	releaseYear: string | null;
+	status: MovieStatus;
+};
+
 export async function deleteMovieForUser(
 	userId: string,
 	rawId: FormDataEntryValue | null
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; removedTitle: string; undo?: DeletedMovieUndo } | { ok: false; error: string }> {
 	const movieId = parseMovieId(rawId);
 
 	if (!movieId) {
@@ -319,12 +329,37 @@ export async function deleteMovieForUser(
 	const [removed] = await db
 		.delete(movie)
 		.where(and(eq(movie.id, movieId), eq(movie.userId, userId)))
-		.returning({ id: movie.id });
+		.returning({
+			id: movie.id,
+			title: movie.title,
+			tmdbId: movie.tmdbId,
+			posterPath: movie.posterPath,
+			status: movie.status,
+			tmdbReleaseYear: movie.tmdbReleaseYear
+		});
 
 	if (!removed) {
 		return { ok: false, error: 'Movie not found or already removed.' };
 	}
-	return { ok: true };
+
+	const undo =
+		removed.tmdbId != null &&
+		isMovieStatus(removed.status) &&
+		removed.title.trim().length > 0
+			? ({
+					title: removed.title,
+					tmdbId: removed.tmdbId,
+					posterPath: removed.posterPath,
+					releaseYear:
+						removed.tmdbReleaseYear != null &&
+						/^\d{4}$/.test(removed.tmdbReleaseYear.trim())
+							? removed.tmdbReleaseYear.trim()
+							: null,
+					status: removed.status as MovieStatus
+				} satisfies DeletedMovieUndo)
+			: undefined;
+
+	return { ok: true, removedTitle: removed.title, undo };
 }
 
 /**
