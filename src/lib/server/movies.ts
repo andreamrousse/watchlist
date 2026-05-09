@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { movie } from '$lib/server/db/schema';
-import { firstSearchHit } from '$lib/server/tmdb';
+import { fetchMovieVoteStats, firstSearchHit } from '$lib/server/tmdb';
 import { isMovieStatus, type MovieStatus } from '$lib/movie-status';
 
 const MAX_TITLE_LENGTH = 500;
@@ -14,6 +14,8 @@ export type MovieRow = {
 	tmdbId: number | null;
 	posterPath: string | null;
 	status: MovieStatus;
+	tmdbVoteAverage: number | null;
+	tmdbVoteCount: number | null;
 	createdAt: Date;
 };
 
@@ -59,12 +61,21 @@ export function listMoviesForUser(userId: string): Promise<MovieRow[]> {
 			tmdbId: movie.tmdbId,
 			posterPath: movie.posterPath,
 			status: movie.status,
+			tmdbVoteAverage: movie.tmdbVoteAverage,
+			tmdbVoteCount: movie.tmdbVoteCount,
 			createdAt: movie.createdAt
 		})
 		.from(movie)
 		.where(eq(movie.userId, userId))
 		.orderBy(desc(movie.createdAt))
-		.then((rows): MovieRow[] => rows.map((r) => ({ ...r, status: r.status as MovieStatus })));
+		.then((rows): MovieRow[] =>
+			rows.map((r) => ({
+				...r,
+				status: r.status as MovieStatus,
+				tmdbVoteAverage: r.tmdbVoteAverage == null ? null : Number(r.tmdbVoteAverage),
+				tmdbVoteCount: r.tmdbVoteCount == null ? null : r.tmdbVoteCount
+			}))
+		);
 }
 
 export async function createMovie(
@@ -81,13 +92,17 @@ export async function createMovie(
 		return { ok: false, error: 'Choose a movie from the search results.' };
 	}
 
+	const voteStats = await fetchMovieVoteStats(tmdb.tmdbId);
+
 	const [row] = await db
 		.insert(movie)
 		.values({
 			userId,
 			title,
 			tmdbId: tmdb.tmdbId,
-			posterPath: tmdb.posterPath
+			posterPath: tmdb.posterPath,
+			tmdbVoteAverage: voteStats?.voteAverage ?? null,
+			tmdbVoteCount: voteStats?.voteCount ?? null
 		})
 		.returning({
 			id: movie.id,
@@ -95,12 +110,32 @@ export async function createMovie(
 			tmdbId: movie.tmdbId,
 			posterPath: movie.posterPath,
 			status: movie.status,
+			tmdbVoteAverage: movie.tmdbVoteAverage,
+			tmdbVoteCount: movie.tmdbVoteCount,
 			createdAt: movie.createdAt
 		});
 	if (!row) {
 		return { ok: false, error: 'Could not add movie.' };
 	}
-	return { ok: true, row: { ...row, status: row.status as MovieStatus } };
+	return { ok: true, row: normalizeMovieRow(row) };
+}
+
+function normalizeMovieRow(row: {
+	id: number;
+	title: string;
+	tmdbId: number | null;
+	posterPath: string | null;
+	status: string;
+	tmdbVoteAverage: number | null;
+	tmdbVoteCount: number | null;
+	createdAt: Date;
+}): MovieRow {
+	return {
+		...row,
+		status: row.status as MovieStatus,
+		tmdbVoteAverage: row.tmdbVoteAverage == null ? null : Number(row.tmdbVoteAverage),
+		tmdbVoteCount: row.tmdbVoteCount == null ? null : row.tmdbVoteCount
+	};
 }
 
 export function parseTmdbPayloadFromForm(formData: FormData):
@@ -188,9 +223,43 @@ export async function backfillTmdbForUser(userId: string): Promise<void> {
 	for (const row of stale) {
 		const hit = await firstSearchHit(row.title);
 		if (!hit) continue;
+		const voteStats = await fetchMovieVoteStats(hit.tmdbId);
 		await db
 			.update(movie)
-			.set({ tmdbId: hit.tmdbId, posterPath: hit.posterPath })
+			.set({
+				tmdbId: hit.tmdbId,
+				posterPath: hit.posterPath,
+				tmdbVoteAverage: voteStats?.voteAverage ?? null,
+				tmdbVoteCount: voteStats?.voteCount ?? null
+			})
+			.where(eq(movie.id, row.id));
+	}
+}
+
+/**
+ * Pulls TMDB vote_average / vote_count for rows that already have tmdbId but no cached stats.
+ */
+export async function backfillTmdbVotesForUser(userId: string): Promise<void> {
+	const stale = await db
+		.select({
+			id: movie.id,
+			tmdbId: movie.tmdbId
+		})
+		.from(movie)
+		.where(and(eq(movie.userId, userId), isNotNull(movie.tmdbId), isNull(movie.tmdbVoteAverage)))
+		.orderBy(asc(movie.createdAt))
+		.limit(BACKFILL_BATCH);
+
+	for (const row of stale) {
+		if (row.tmdbId === null) continue;
+		const voteStats = await fetchMovieVoteStats(row.tmdbId);
+		if (!voteStats) continue;
+		await db
+			.update(movie)
+			.set({
+				tmdbVoteAverage: voteStats.voteAverage,
+				tmdbVoteCount: voteStats.voteCount
+			})
 			.where(eq(movie.id, row.id));
 	}
 }

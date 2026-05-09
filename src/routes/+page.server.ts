@@ -8,7 +8,16 @@ export const load: PageServerLoad = async (event) => {
 	if (!user) {
 		return redirect(302, '/login');
 	}
-	await movies.backfillTmdbForUser(user.id);
+	try {
+		await movies.backfillTmdbForUser(user.id);
+	} catch (e) {
+		console.error('backfillTmdbForUser:', e);
+	}
+	try {
+		await movies.backfillTmdbVotesForUser(user.id);
+	} catch (e) {
+		console.error('backfillTmdbVotesForUser:', e);
+	}
 	const list = await movies.listMoviesForUser(user.id);
 	return { user, movies: list };
 };

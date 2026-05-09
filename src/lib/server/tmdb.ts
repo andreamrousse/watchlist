@@ -58,3 +58,33 @@ export async function firstSearchHit(query: string): Promise<TmdbSearchHit | nul
 	const hits = await searchMovies(query);
 	return hits[0] ?? null;
 }
+
+type TmdbMovieDetailsPayload = {
+	vote_average?: unknown;
+	vote_count?: unknown;
+};
+
+/** TMDB aggregates (not logged-in user scores). Cached in our DB beside each row. */
+export async function fetchMovieVoteStats(tmdbId: number): Promise<{
+	voteAverage: number;
+	voteCount: number;
+} | null> {
+	const token = env.TMDB_API_KEY;
+	if (!token?.trim()) return null;
+	if (!Number.isInteger(tmdbId) || tmdbId <= 0) return null;
+
+	const res = await fetch(`${TMDB_API}/movie/${tmdbId}`, {
+		headers: { Authorization: `Bearer ${token.trim()}` }
+	});
+	if (!res.ok) return null;
+
+	const data = (await res.json()) as TmdbMovieDetailsPayload;
+	const va = data.vote_average;
+	const vc = data.vote_count;
+	if (typeof va !== 'number' || !Number.isFinite(va)) return null;
+	let voteCount = 0;
+	if (typeof vc === 'number' && Number.isFinite(vc) && vc >= 0) {
+		voteCount = Math.round(vc);
+	}
+	return { voteAverage: va, voteCount };
+}

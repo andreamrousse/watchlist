@@ -9,6 +9,7 @@
 	import Keyboard from 'lucide-svelte/icons/keyboard';
 	import Plus from 'lucide-svelte/icons/plus';
 	import SearchSlash from 'lucide-svelte/icons/search-slash';
+	import Star from 'lucide-svelte/icons/star';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import X from 'lucide-svelte/icons/x';
 	import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down';
@@ -22,14 +23,15 @@
 	};
 
 	type ListStatusFilter = 'all' | MovieStatus;
-	type ListSortMode = 'date_added' | 'alphabetically';
+	type ListSortMode = 'date_added' | 'public_score' | 'alphabetically';
 
 	const SORT_OPTION_LABELS: Record<ListSortMode, string> = {
 		date_added: 'Date added',
+		public_score: 'TMDB score',
 		alphabetically: 'Alphabetically'
 	};
 
-	const SORT_MODES_ORDER: ListSortMode[] = ['date_added', 'alphabetically'];
+	const SORT_MODES_ORDER: ListSortMode[] = ['date_added', 'public_score', 'alphabetically'];
 
 	const FILTER_TAB_LABELS: Record<ListStatusFilter, string> = {
 		all: 'All',
@@ -69,6 +71,12 @@
 				const c = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
 				return c !== 0 ? c : a.id - b.id;
 			}
+			if (listSortMode === 'public_score') {
+				const diff = publicScoreSortKey(b) - publicScoreSortKey(a);
+				if (diff !== 0) return diff;
+				const d = createdAtMs(b) - createdAtMs(a);
+				return d !== 0 ? d : b.id - a.id;
+			}
 			const d = createdAtMs(b) - createdAtMs(a);
 			return d !== 0 ? d : b.id - a.id;
 		});
@@ -89,13 +97,26 @@
 	let sortDropdownOpen = $state(false);
 	let sortDropdownEl: HTMLDivElement | undefined = $state();
 
+	function publicScoreSortKey(movie: {
+		tmdbVoteAverage: number | null;
+	}): number {
+		if (movie.tmdbVoteAverage != null && Number.isFinite(Number(movie.tmdbVoteAverage))) {
+			return Number(movie.tmdbVoteAverage);
+		}
+		return -1;
+	}
+
+	function formatCompactVotes(n: number): string {
+		return `${new Intl.NumberFormat(undefined, { notation: 'compact' }).format(n)} votes`;
+	}
+
 	onMount(() => {
 		const onDocClick = (e: MouseEvent) => {
-			const el = sortDropdownEl;
-			if (!el) return;
 			const t = e.target;
-			if (t instanceof Node && el.contains(t)) return;
-			sortDropdownOpen = false;
+			if (!(t instanceof Node)) return;
+
+			const sortEl = sortDropdownEl;
+			if (sortEl && !sortEl.contains(t)) sortDropdownOpen = false;
 		};
 		document.addEventListener('click', onDocClick, true);
 		return () => document.removeEventListener('click', onDocClick, true);
@@ -429,12 +450,34 @@
 											</div>
 										{/if}
 									</div>
-									<div class="movie-item-title-row">
-										<span
-											class={`movie-status-dot movie-status-dot--${m.status}`}
-											aria-hidden="true"
-										></span>
-										<span class="movie-item-title">{m.title}</span>
+									<div class="movie-item-meta">
+										<div class="movie-item-title-row">
+											<span
+												class={`movie-status-dot movie-status-dot--${m.status}`}
+												aria-hidden="true"
+											></span>
+											<span class="movie-item-title">{m.title}</span>
+										</div>
+										{#if m.tmdbVoteAverage != null && Number.isFinite(Number(m.tmdbVoteAverage))}
+											{@const tmdbAvg = Number(m.tmdbVoteAverage)}
+											{@const scoreTitle =
+												`TMDB community average ${tmdbAvg.toFixed(1)} out of 10.` +
+												(m.tmdbVoteCount != null && m.tmdbVoteCount > 0
+													? ` ${formatCompactVotes(m.tmdbVoteCount)}`
+													: '')}
+											<div class="movie-public-score" title={scoreTitle} aria-label={scoreTitle}>
+												<span class="movie-public-score-visual" aria-hidden="true">
+													<Star
+														size={14}
+														strokeWidth={2}
+														class="movie-public-score-star"
+														fill="currentColor"
+													/>
+													<span class="movie-public-score-value">{tmdbAvg.toFixed(1)}</span>
+													<span class="movie-public-score-max">/10</span>
+												</span>
+											</div>
+										{/if}
 									</div>
 								</div>
 								<div class="movie-item-controls">

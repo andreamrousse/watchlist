@@ -32,8 +32,7 @@ I will build a Watchlist app for the user to track the watched movies and the mo
 
 ### Could have
 
-- Movie public rating
-- Movie my own rating
+- Movie public rating (cached TMDB vote average when available)
 - Movie launching date
 - Movie genere
 - Movie watching platform
