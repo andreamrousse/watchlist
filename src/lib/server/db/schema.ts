@@ -1,5 +1,5 @@
-import { relations } from 'drizzle-orm';
-import { pgTable, serial, integer, real, text, timestamp, index } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+import { pgTable, serial, integer, real, text, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { user } from './auth.schema';
 
 export const movie = pgTable(
@@ -22,7 +22,12 @@ export const movie = pgTable(
 		tmdbReleaseYear: text('tmdb_release_year'),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
-	(table) => [index('movie_userId_idx').on(table.userId)]
+	(table) => [
+		index('movie_userId_idx').on(table.userId),
+		uniqueIndex('movie_user_tmdb_uidx')
+			.on(table.userId, table.tmdbId)
+			.where(sql`${table.tmdbId} is not null`)
+	]
 );
 
 export const movieRelations = relations(movie, ({ one }) => ({

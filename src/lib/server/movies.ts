@@ -1,10 +1,11 @@
-import { dbErrorLooksLikeMissingMigration } from '$lib/server/db-errors';
+import { dbErrorLooksLikeMissingMigration, dbErrorLooksLikeUniqueViolation } from '$lib/server/db-errors';
 import { and, asc, desc, eq, isNotNull, isNull, or } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { movie } from '$lib/server/db/schema';
 import { fetchMovieVoteStats, firstSearchHit } from '$lib/server/tmdb';
 import { isMovieStatus, type MovieStatus } from '$lib/movie-status';
 
+const DUPLICATE_MOVIE_ERROR = 'That title is already on your list.';
 const MAX_TITLE_LENGTH = 500;
 const MAX_POSTER_PATH_LENGTH = 255;
 const BACKFILL_BATCH = 8;
@@ -152,6 +153,15 @@ export async function createMovie(
 	const voteStats = await fetchMovieVoteStats(tmdb.tmdbId);
 	const releaseYear = voteStats?.releaseYear ?? tmdb.releaseYear;
 
+	const [existing] = await db
+		.select({ id: movie.id })
+		.from(movie)
+		.where(and(eq(movie.userId, userId), eq(movie.tmdbId, tmdb.tmdbId)))
+		.limit(1);
+	if (existing) {
+		return { ok: false, error: DUPLICATE_MOVIE_ERROR };
+	}
+
 	const returningFull = {
 		id: movie.id,
 		title: movie.title,
@@ -193,28 +203,38 @@ export async function createMovie(
 		}
 		return { ok: true, row: normalizeMovieRow(row) };
 	} catch (e) {
+		if (dbErrorLooksLikeUniqueViolation(e)) {
+			return { ok: false, error: DUPLICATE_MOVIE_ERROR };
+		}
 		if (!dbErrorLooksLikeMissingMigration(e)) throw e;
 		console.warn(
 			'createMovie: column tmdb_release_year missing; insert without year. Run `pnpm db:migrate` to add it.'
 		);
-		const [row] = await db
-			.insert(movie)
-			.values({
-				userId,
-				title,
-				tmdbId: tmdb.tmdbId,
-				posterPath: tmdb.posterPath,
-				tmdbVoteAverage: voteStats?.voteAverage ?? null,
-				tmdbVoteCount: voteStats?.voteCount ?? null
-			})
-			.returning(returningNoYear);
-		if (!row) {
-			return { ok: false, error: 'Could not add movie.' };
+		try {
+			const [row] = await db
+				.insert(movie)
+				.values({
+					userId,
+					title,
+					tmdbId: tmdb.tmdbId,
+					posterPath: tmdb.posterPath,
+					tmdbVoteAverage: voteStats?.voteAverage ?? null,
+					tmdbVoteCount: voteStats?.voteCount ?? null
+				})
+				.returning(returningNoYear);
+			if (!row) {
+				return { ok: false, error: 'Could not add movie.' };
+			}
+			return {
+				ok: true,
+				row: normalizeMovieRow({ ...row, releaseYear: null, status: row.status })
+			};
+		} catch (e2) {
+			if (dbErrorLooksLikeUniqueViolation(e2)) {
+				return { ok: false, error: DUPLICATE_MOVIE_ERROR };
+			}
+			throw e2;
 		}
-		return {
-			ok: true,
-			row: normalizeMovieRow({ ...row, releaseYear: null, status: row.status })
-		};
 	}
 }
 

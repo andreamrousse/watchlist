@@ -16,6 +16,8 @@
 	import X from 'lucide-svelte/icons/x';
 	import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down';
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import LayoutGrid from 'lucide-svelte/icons/layout-grid';
+	import LayoutList from 'lucide-svelte/icons/layout-list';
 
 	type SuggestHit = {
 		tmdbId: number;
@@ -29,6 +31,10 @@
 	type ListStatusFilter = 'all' | MovieStatus;
 	type ListSortMode = 'date_added' | 'release_year' | 'public_score' | 'alphabetically';
 	type MovieRow = PageServerData['movies'][number];
+
+	const STORAGE_KEY_WATCHLIST_VIEW = 'moviemate.watchlistView';
+
+	type WatchlistViewLayout = 'list' | 'grid';
 
 	const SORT_OPTION_LABELS: Record<ListSortMode, string> = {
 		date_added: 'Date added',
@@ -125,6 +131,15 @@
 		return rows;
 	});
 
+	let watchlistTmdbIds = $derived.by(() => {
+		const s = new Set<number>();
+		for (const m of data.movies) {
+			const id = m.tmdbId;
+			if (id != null && Number.isInteger(id)) s.add(id);
+		}
+		return s;
+	});
+
 	let query = $state('');
 	let searchResults = $state<SuggestHit[]>([]);
 	let suggestLoading = $state(false);
@@ -139,6 +154,16 @@
 	let sortDropdownOpen = $state(false);
 	let sortDropdownEl: HTMLDivElement | undefined = $state();
 	let statusDropdownMovieId = $state<number | null>(null);
+	let watchlistViewLayout = $state<WatchlistViewLayout>('list');
+
+	function setWatchlistViewLayout(next: WatchlistViewLayout): void {
+		watchlistViewLayout = next;
+		try {
+			localStorage.setItem(STORAGE_KEY_WATCHLIST_VIEW, next);
+		} catch {
+			/* private mode / quota */
+		}
+	}
 
 	function publicScoreSortKey(movie: {
 		tmdbVoteAverage: number | null;
@@ -164,6 +189,13 @@
 	}
 
 	onMount(() => {
+		try {
+			const raw = localStorage.getItem(STORAGE_KEY_WATCHLIST_VIEW);
+			if (raw === 'grid' || raw === 'list') watchlistViewLayout = raw;
+		} catch {
+			/* ignore */
+		}
+
 		const onDocClick = (e: MouseEvent) => {
 			const t = e.target;
 			if (!(t instanceof Node)) return;
@@ -345,6 +377,7 @@
 				<ul id="search-suggest-list" class="search-suggest-rail" role="list">
 					{#each searchResults as hit (hit.tmdbId)}
 						{@const searchPoster = posterSrc(hit.posterPath, 'w154')}
+						{@const hitAlreadyOnList = watchlistTmdbIds.has(hit.tmdbId)}
 						<li class="search-suggest-item">
 							<div class="search-suggest-thumb">
 								{#if searchPoster}
@@ -420,11 +453,19 @@
 								<input type="hidden" name="releaseYear" value={hit.releaseYear ?? ''} />
 								<button
 									type="submit"
-									class="button button-has-icon button-suggest-add"
-									disabled={adding}
+									class={`button button-suggest-add${hitAlreadyOnList ? '' : ' button-has-icon'}`}
+									disabled={adding || hitAlreadyOnList}
+									aria-label={hitAlreadyOnList
+										? `Already on list: ${hit.title}`
+										: `Add ${hit.title} to watchlist`}
+									title={hitAlreadyOnList ? 'Already on your list' : undefined}
 								>
-									<Plus size={18} strokeWidth={1.65} aria-hidden="true" />
-									<span>Add</span>
+									{#if hitAlreadyOnList}
+										<span>On list</span>
+									{:else}
+										<Plus size={18} strokeWidth={1.65} aria-hidden="true" />
+										<span>Add</span>
+									{/if}
 								</button>
 							</form>
 						</li>
@@ -465,7 +506,33 @@
 	</section>
 
 	<section class="section section-panel" aria-labelledby="list-heading">
-		<h2 id="list-heading" class="section-title">Watchlist</h2>
+		<div class="watchlist-heading-row">
+			<h2 id="list-heading" class="section-title watchlist-heading-title">Watchlist</h2>
+			{#if data.movies.length > 0}
+				<div class="watchlist-heading-actions">
+					<div class="list-view-toggle" role="group" aria-label="Watchlist layout">
+						<button
+							type="button"
+							class="list-view-toggle-btn"
+							aria-pressed={watchlistViewLayout === 'list'}
+							aria-label="List layout"
+							onclick={() => setWatchlistViewLayout('list')}
+						>
+							<LayoutList size={15} strokeWidth={1.75} aria-hidden="true" />
+						</button>
+						<button
+							type="button"
+							class="list-view-toggle-btn"
+							aria-pressed={watchlistViewLayout === 'grid'}
+							aria-label="Grid layout"
+							onclick={() => setWatchlistViewLayout('grid')}
+						>
+							<LayoutGrid size={15} strokeWidth={1.75} aria-hidden="true" />
+						</button>
+					</div>
+				</div>
+			{/if}
+		</div>
 		{#if data.movies.length === 0}
 			<div class="watchlist-empty" role="status">
 				<div class="watchlist-empty-icon-wrap" aria-hidden="true">
@@ -500,54 +567,56 @@
 							</button>
 						{/each}
 					</div>
-					<div class="list-sort-dropdown" bind:this={sortDropdownEl}>
-						<button
-							type="button"
-							class="list-sort-trigger"
-							id="list-sort-trigger"
-							aria-expanded={sortDropdownOpen}
-							aria-haspopup="menu"
-							aria-controls="list-sort-menu"
-							onclick={(e) => toggleSortDropdown(e)}
-						>
-							<ArrowUpDown
-								size={14}
-								strokeWidth={1.75}
-								class="list-sort-trigger-icon icon-muted"
-								aria-hidden="true"
-							/>
-							<span class="list-sort-trigger-label">
-								<span class="list-sort-trigger-prefix">Sort:</span>
-								<span class="list-sort-trigger-value">{SORT_OPTION_LABELS[listSortMode]}</span>
-							</span>
-							<ChevronDown
-								size={14}
-								strokeWidth={2}
-								class="list-sort-trigger-chevron"
-								aria-hidden="true"
-							/>
-						</button>
-						{#if sortDropdownOpen}
-							<div
-								id="list-sort-menu"
-								class="list-sort-menu"
-								role="menu"
-								aria-labelledby="list-sort-trigger"
+					<div class="list-controls-actions">
+						<div class="list-sort-dropdown" bind:this={sortDropdownEl}>
+							<button
+								type="button"
+								class="list-sort-trigger"
+								id="list-sort-trigger"
+								aria-expanded={sortDropdownOpen}
+								aria-haspopup="menu"
+								aria-controls="list-sort-menu"
+								onclick={(e) => toggleSortDropdown(e)}
 							>
-								{#each SORT_MODES_ORDER as mode (mode)}
-									<button
-										type="button"
-										class="list-sort-menu-item"
-										class:list-sort-menu-item--selected={listSortMode === mode}
-										role="menuitemradio"
-										aria-checked={listSortMode === mode}
-										onclick={() => chooseSort(mode)}
-									>
-										{SORT_OPTION_LABELS[mode]}
-									</button>
-								{/each}
-							</div>
-						{/if}
+								<ArrowUpDown
+									size={14}
+									strokeWidth={1.75}
+									class="list-sort-trigger-icon icon-muted"
+									aria-hidden="true"
+								/>
+								<span class="list-sort-trigger-label">
+									<span class="list-sort-trigger-prefix">Sort:</span>
+									<span class="list-sort-trigger-value">{SORT_OPTION_LABELS[listSortMode]}</span>
+								</span>
+								<ChevronDown
+									size={14}
+									strokeWidth={2}
+									class="list-sort-trigger-chevron"
+									aria-hidden="true"
+								/>
+							</button>
+							{#if sortDropdownOpen}
+								<div
+									id="list-sort-menu"
+									class="list-sort-menu"
+									role="menu"
+									aria-labelledby="list-sort-trigger"
+								>
+									{#each SORT_MODES_ORDER as mode (mode)}
+										<button
+											type="button"
+											class="list-sort-menu-item"
+											class:list-sort-menu-item--selected={listSortMode === mode}
+											role="menuitemradio"
+											aria-checked={listSortMode === mode}
+											onclick={() => chooseSort(mode)}
+										>
+											{SORT_OPTION_LABELS[mode]}
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -569,135 +638,272 @@
 					</div>
 				</div>
 			{:else}
-				<ul class="movie-list">
+				<ul
+					class={watchlistViewLayout === 'grid' ? 'movie-grid' : 'movie-list'}
+					data-watchlist-layout={watchlistViewLayout}
+				>
 					{#each displayedMovies as m (m.id)}
-						{@const listPoster = posterSrc(m.posterPath, 'w92')}
-						<li class="movie-item">
-							<div class="movie-item-row">
-								<div class="movie-item-main">
-									<div class="movie-item-thumb">
-										{#if listPoster}
-											<img
-												src={listPoster}
-												alt=""
-												width="48"
-												height="72"
-												class="movie-item-img"
-												loading="lazy"
-											/>
-										{:else}
-											<div class="poster-placeholder poster-placeholder--list" aria-hidden="true">
-												<Film size={20} strokeWidth={1.5} class="icon-muted" />
-											</div>
-										{/if}
-									</div>
-									<div class="movie-item-meta">
-										<div class="movie-item-heading">
-											<span class="movie-item-title">{m.title}</span>
-											{#if m.releaseYear}
-												<span class="movie-item-year muted">{m.releaseYear}</span>
+						{#if watchlistViewLayout === 'list'}
+							{@const listPoster = posterSrc(m.posterPath, 'w92')}
+							<li class="movie-item">
+								<div class="movie-item-row">
+									<div class="movie-item-main">
+										<div class="movie-item-thumb">
+											{#if listPoster}
+												<img
+													src={listPoster}
+													alt=""
+													width="48"
+													height="72"
+													class="movie-item-img"
+													loading="lazy"
+												/>
+											{:else}
+												<div class="poster-placeholder poster-placeholder--list" aria-hidden="true">
+													<Film size={20} strokeWidth={1.5} class="icon-muted" />
+												</div>
 											{/if}
 										</div>
+										<div class="movie-item-meta">
+											<div class="movie-item-heading">
+												<span class="movie-item-title">{m.title}</span>
+												{#if m.releaseYear}
+													<span class="movie-item-year muted">{m.releaseYear}</span>
+												{/if}
+											</div>
+											{#if m.tmdbVoteAverage != null && Number.isFinite(Number(m.tmdbVoteAverage))}
+												{@const tmdbAvg = Number(m.tmdbVoteAverage)}
+												{@const scoreTitle =
+													`Community rating ${tmdbAvg.toFixed(1)} out of 10.` +
+													(m.tmdbVoteCount != null && m.tmdbVoteCount > 0
+														? ` ${formatCompactVotes(m.tmdbVoteCount)}`
+														: '')}
+												<div class="movie-public-score" title={scoreTitle} aria-label={scoreTitle}>
+													<span class="movie-public-score-visual" aria-hidden="true">
+														<Star
+															size={14}
+															strokeWidth={2}
+															class="movie-public-score-star"
+															fill="currentColor"
+														/>
+														<span class="movie-public-score-value">{tmdbAvg.toFixed(1)}</span>
+														<span class="movie-public-score-max">/10</span>
+													</span>
+												</div>
+											{/if}
+										</div>
+									</div>
+									<div class="movie-item-controls">
+										<form
+											method="post"
+											action="?/updateMovieStatus"
+											class="movie-status-form"
+											use:enhance={() => {
+												const updatingId = m.id;
+												statusUpdatingId = updatingId;
+												return async ({ update }) => {
+													await update();
+													statusUpdatingId = null;
+												};
+											}}
+										>
+											<input type="hidden" name="movieId" value={m.id} />
+											<input type="hidden" name="status" value={m.status} />
+											<span class="sr-only" id={`movie-status-lbl-${m.id}`}>Watch status for {m.title}</span>
+											<div
+												class={`movie-status-select-wrap movie-status-select-wrap--${m.status}` +
+													(statusDropdownMovieId === m.id ? ' movie-status-select-wrap--open' : '')}
+												data-movie-status-dropdown
+											>
+												<button
+													type="button"
+													id={`movie-status-${m.id}-trigger`}
+													class="movie-status-select movie-status-dropdown-trigger"
+													aria-labelledby={`movie-status-lbl-${m.id} movie-status-${m.id}-trigger-value`}
+													aria-expanded={statusDropdownMovieId === m.id}
+													aria-haspopup="menu"
+													aria-controls={`movie-status-${m.id}-menu`}
+													disabled={statusUpdatingId === m.id}
+													onclick={(e) => toggleMovieStatusDropdown(e, m.id)}
+												>
+													<MovieStatusIcon status={m.status} size={13} />
+													<span class="movie-status-dropdown-trigger-value" id={`movie-status-${m.id}-trigger-value`}
+														>{MOVIE_STATUS_LABELS[m.status]}</span
+													>
+													<ChevronDown class="movie-status-dropdown-chevron" size={13} strokeWidth={2} aria-hidden="true" />
+												</button>
+												{#if statusDropdownMovieId === m.id}
+													<div
+														id={`movie-status-${m.id}-menu`}
+														class="movie-status-dropdown-menu"
+														role="menu"
+														aria-labelledby={`movie-status-${m.id}-trigger`}
+													>
+														{#each MOVIE_STATUSES as s (s)}
+															<button
+																type="button"
+																class={`movie-status-dropdown-item movie-status-dropdown-item--${s}`}
+																class:movie-status-dropdown-item--selected={s === m.status}
+																role="menuitemradio"
+																aria-checked={s === m.status}
+																onclick={(e) => chooseMovieStatus(e, m, s)}
+															>
+																<MovieStatusIcon status={s} size={14} />
+																<span class="movie-status-dropdown-item-label"
+																	>{MOVIE_STATUS_LABELS[s]}</span
+																>
+															</button>
+														{/each}
+													</div>
+												{/if}
+											</div>
+										</form>
+										<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
+											<input type="hidden" name="movieId" value={m.id} />
+											<button
+												type="submit"
+												class="button-remove button-has-icon"
+												aria-label="Remove from list"
+											>
+												<Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
+											</button>
+										</form>
+									</div>
+								</div>
+							</li>
+						{:else}
+							{@const gridPoster = posterSrc(m.posterPath, 'w342')}
+							<li class="movie-grid-item">
+								<div class="movie-grid-media">
+									{#if gridPoster}
+										<img
+											src={gridPoster}
+											alt=""
+											width="342"
+											height="513"
+											class="movie-grid-img"
+											loading="lazy"
+											decoding="async"
+										/>
+									{:else}
+										<div class="poster-placeholder movie-grid-placeholder" aria-hidden="true">
+											<Film size={34} strokeWidth={1.5} class="icon-muted" />
+										</div>
+									{/if}
+								</div>
+								<div class="movie-grid-panel">
+									<p class="movie-grid-title">{m.title}</p>
+									<div class="movie-grid-meta-row">
+										{#if m.releaseYear}
+											<span class="movie-grid-year muted">{m.releaseYear}</span>
+										{/if}
 										{#if m.tmdbVoteAverage != null && Number.isFinite(Number(m.tmdbVoteAverage))}
-											{@const tmdbAvg = Number(m.tmdbVoteAverage)}
-											{@const scoreTitle =
-												`Community rating ${tmdbAvg.toFixed(1)} out of 10.` +
+											{@const tmdbAvgG = Number(m.tmdbVoteAverage)}
+											{@const scoreTitleG =
+												`Community rating ${tmdbAvgG.toFixed(1)} out of 10.` +
 												(m.tmdbVoteCount != null && m.tmdbVoteCount > 0
 													? ` ${formatCompactVotes(m.tmdbVoteCount)}`
 													: '')}
-											<div class="movie-public-score" title={scoreTitle} aria-label={scoreTitle}>
+											{#if m.releaseYear}
+												<span class="movie-grid-meta-sep muted" aria-hidden="true">·</span>
+											{/if}
+											<div
+												class="movie-public-score movie-grid-public-score"
+												title={scoreTitleG}
+												aria-label={scoreTitleG}
+											>
 												<span class="movie-public-score-visual" aria-hidden="true">
 													<Star
-														size={14}
+														size={12}
 														strokeWidth={2}
 														class="movie-public-score-star"
 														fill="currentColor"
 													/>
-													<span class="movie-public-score-value">{tmdbAvg.toFixed(1)}</span>
+													<span class="movie-public-score-value">{tmdbAvgG.toFixed(1)}</span>
 													<span class="movie-public-score-max">/10</span>
 												</span>
 											</div>
 										{/if}
 									</div>
-								</div>
-								<div class="movie-item-controls">
-									<form
-										method="post"
-										action="?/updateMovieStatus"
-										class="movie-status-form"
-										use:enhance={() => {
-											const updatingId = m.id;
-											statusUpdatingId = updatingId;
-											return async ({ update }) => {
-												await update();
-												statusUpdatingId = null;
-											};
-										}}
-									>
-										<input type="hidden" name="movieId" value={m.id} />
-										<input type="hidden" name="status" value={m.status} />
-										<span class="sr-only" id={`movie-status-lbl-${m.id}`}>Watch status for {m.title}</span>
-										<div
-											class={`movie-status-select-wrap movie-status-select-wrap--${m.status}` +
-												(statusDropdownMovieId === m.id ? ' movie-status-select-wrap--open' : '')}
-											data-movie-status-dropdown
+									<div class="movie-item-controls movie-grid-controls">
+										<form
+											method="post"
+											action="?/updateMovieStatus"
+											class="movie-status-form"
+											use:enhance={() => {
+												const updatingId = m.id;
+												statusUpdatingId = updatingId;
+												return async ({ update }) => {
+													await update();
+													statusUpdatingId = null;
+												};
+											}}
 										>
-											<button
-												type="button"
-												id={`movie-status-${m.id}-trigger`}
-												class="movie-status-select movie-status-dropdown-trigger"
-												aria-labelledby={`movie-status-lbl-${m.id} movie-status-${m.id}-trigger-value`}
-												aria-expanded={statusDropdownMovieId === m.id}
-												aria-haspopup="menu"
-												aria-controls={`movie-status-${m.id}-menu`}
-												disabled={statusUpdatingId === m.id}
-												onclick={(e) => toggleMovieStatusDropdown(e, m.id)}
+											<input type="hidden" name="movieId" value={m.id} />
+											<input type="hidden" name="status" value={m.status} />
+											<span class="sr-only" id={`movie-status-lbl-${m.id}`}>Watch status for {m.title}</span>
+											<div
+												class={`movie-status-select-wrap movie-status-select-wrap--${m.status}` +
+													(statusDropdownMovieId === m.id ? ' movie-status-select-wrap--open' : '')}
+												data-movie-status-dropdown
 											>
-												<MovieStatusIcon status={m.status} size={13} />
-												<span class="movie-status-dropdown-trigger-value" id={`movie-status-${m.id}-trigger-value`}
-													>{MOVIE_STATUS_LABELS[m.status]}</span
+												<button
+													type="button"
+													id={`movie-status-${m.id}-trigger`}
+													class="movie-status-select movie-status-dropdown-trigger"
+													aria-labelledby={`movie-status-lbl-${m.id} movie-status-${m.id}-trigger-value`}
+													aria-expanded={statusDropdownMovieId === m.id}
+													aria-haspopup="menu"
+													aria-controls={`movie-status-${m.id}-menu`}
+													disabled={statusUpdatingId === m.id}
+													onclick={(e) => toggleMovieStatusDropdown(e, m.id)}
 												>
-												<ChevronDown class="movie-status-dropdown-chevron" size={13} strokeWidth={2} aria-hidden="true" />
-											</button>
-											{#if statusDropdownMovieId === m.id}
-												<div
-													id={`movie-status-${m.id}-menu`}
-													class="movie-status-dropdown-menu"
-													role="menu"
-													aria-labelledby={`movie-status-${m.id}-trigger`}
-												>
-													{#each MOVIE_STATUSES as s (s)}
-														<button
-															type="button"
-															class={`movie-status-dropdown-item movie-status-dropdown-item--${s}`}
-															class:movie-status-dropdown-item--selected={s === m.status}
-															role="menuitemradio"
-															aria-checked={s === m.status}
-															onclick={(e) => chooseMovieStatus(e, m, s)}
-														>
-															<MovieStatusIcon status={s} size={14} />
-															<span class="movie-status-dropdown-item-label"
-																>{MOVIE_STATUS_LABELS[s]}</span
+													<MovieStatusIcon status={m.status} size={13} />
+													<span class="movie-status-dropdown-trigger-value" id={`movie-status-${m.id}-trigger-value`}
+														>{MOVIE_STATUS_LABELS[m.status]}</span
+													>
+													<ChevronDown class="movie-status-dropdown-chevron" size={13} strokeWidth={2} aria-hidden="true" />
+												</button>
+												{#if statusDropdownMovieId === m.id}
+													<div
+														id={`movie-status-${m.id}-menu`}
+														class="movie-status-dropdown-menu"
+														role="menu"
+														aria-labelledby={`movie-status-${m.id}-trigger`}
+													>
+														{#each MOVIE_STATUSES as s (s)}
+															<button
+																type="button"
+																class={`movie-status-dropdown-item movie-status-dropdown-item--${s}`}
+																class:movie-status-dropdown-item--selected={s === m.status}
+																role="menuitemradio"
+																aria-checked={s === m.status}
+																onclick={(e) => chooseMovieStatus(e, m, s)}
 															>
-														</button>
-													{/each}
-												</div>
-											{/if}
-										</div>
-									</form>
-									<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
-										<input type="hidden" name="movieId" value={m.id} />
-										<button
-											type="submit"
-											class="button-remove button-has-icon"
-											aria-label="Remove from list"
-										>
-											<Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
-										</button>
-									</form>
+																<MovieStatusIcon status={s} size={14} />
+																<span class="movie-status-dropdown-item-label"
+																	>{MOVIE_STATUS_LABELS[s]}</span
+																>
+															</button>
+														{/each}
+													</div>
+												{/if}
+											</div>
+										</form>
+										<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
+											<input type="hidden" name="movieId" value={m.id} />
+											<button
+												type="submit"
+												class="button-remove button-has-icon"
+												aria-label="Remove from list"
+											>
+												<Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
+											</button>
+										</form>
+									</div>
 								</div>
-							</div>
-						</li>
+							</li>
+						{/if}
 					{/each}
 				</ul>
 			{/if}
