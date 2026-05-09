@@ -1631,6 +1631,15 @@ a:hover {
 		box-shadow var(--duration-fast) var(--ease-default);
 }
 
+.movie-status-select-wrap:hover:not(:has(.movie-status-select:disabled)):not(.movie-status-select-wrap--open) {
+	border-color: color-mix(in srgb, var(--ms-border) 48%, var(--color-border-strong));
+	background-color: color-mix(in srgb, var(--ms-border) 24%, var(--color-surface-raised));
+	box-shadow:
+		inset 0 1px 0 color-mix(in srgb, var(--color-text) 6%, transparent),
+		0 2px 7px color-mix(in srgb, var(--ms-border) 22%, transparent),
+		0 0 0 1px color-mix(in srgb, var(--ms-border) 12%, transparent);
+}
+
 .movie-status-select-wrap:focus-within {
 	outline: none;
 	box-shadow:
@@ -1849,6 +1858,10 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
 	.movie-status-dropdown-menu {
 		animation-duration: 0ms;
+	}
+
+	.movie-status-select-wrap {
+		transition-duration: 0ms;
 	}
 }
 
