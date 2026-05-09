@@ -10,6 +10,7 @@
 	import Plus from 'lucide-svelte/icons/plus';
 	import SearchSlash from 'lucide-svelte/icons/search-slash';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
+	import X from 'lucide-svelte/icons/x';
 	import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down';
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 
@@ -166,6 +167,16 @@
 		}
 		debounceTimer = setTimeout(() => void runSuggest(value), 320);
 	}
+
+	function clearSearch(): void {
+		query = '';
+		clearTimeout(debounceTimer);
+		abortSuggest?.abort();
+		searchResults = [];
+		suggestHadZero = false;
+		suggestLoading = false;
+		suggestError = null;
+	}
 </script>
 
 <svelte:window
@@ -191,16 +202,31 @@
 		</p>
 		<div class="search-field-wrap">
 			<label class="sr-only" for="q">Search movies by title</label>
-			<input
-				id="q"
-				type="search"
-				autocomplete="off"
-				placeholder="Search by movie title"
-				class="input search-field-input"
-				maxlength="500"
-				bind:value={query}
-				oninput={() => handleQueryInput(query)}
-			/>
+			<div class="search-field-inner" class:search-field-inner--has-clear={query.trim().length > 0}>
+				<input
+					id="q"
+					type="text"
+					role="searchbox"
+					inputmode="search"
+					autocomplete="off"
+					enterkeyhint="search"
+					placeholder="Search by movie title"
+					class="input search-field-input"
+					maxlength="500"
+					bind:value={query}
+					oninput={() => handleQueryInput(query)}
+				/>
+				{#if query.trim().length > 0}
+					<button
+						type="button"
+						class="search-field-clear button-has-icon"
+						aria-label="Clear movie search"
+						onclick={() => clearSearch()}
+					>
+						<X size={16} strokeWidth={1.85} aria-hidden="true" />
+					</button>
+				{/if}
+			</div>
 			{#if suggestLoading}
 				<p class="search-status muted" aria-live="polite">Searching…</p>
 			{/if}
