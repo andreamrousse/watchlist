@@ -1,14 +1,17 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
-	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS } from '$lib/movie-status';
+	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, type MovieStatus } from '$lib/movie-status';
 	import CirclePlus from 'lucide-svelte/icons/circle-plus';
 	import Film from 'lucide-svelte/icons/film';
 	import ImageOff from 'lucide-svelte/icons/image-off';
 	import List from 'lucide-svelte/icons/list';
 	import Plus from 'lucide-svelte/icons/plus';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
+	import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 
 	type SuggestHit = {
 		tmdbId: number;
@@ -17,7 +20,59 @@
 		releaseYear: string | null;
 	};
 
+	type ListStatusFilter = 'all' | MovieStatus;
+	type ListSortMode = 'date_added' | 'alphabetically';
+
+	const SORT_OPTION_LABELS: Record<ListSortMode, string> = {
+		date_added: 'Date added',
+		alphabetically: 'Alphabetically'
+	};
+
+	const SORT_MODES_ORDER: ListSortMode[] = ['date_added', 'alphabetically'];
+
+	const FILTER_TAB_LABELS: Record<ListStatusFilter, string> = {
+		all: 'All',
+		want_to_watch: 'Want',
+		watching: 'Watching',
+		watched: 'Watched'
+	};
+
+	const FILTER_TAB_ARIA_HINT: Partial<Record<ListStatusFilter, string>> = {
+		all: 'All statuses',
+		want_to_watch: MOVIE_STATUS_LABELS.want_to_watch
+	};
+
+	type FilterTab = { filter: ListStatusFilter; label: string };
+	const FILTER_TABS: FilterTab[] = [
+		{ filter: 'all', label: FILTER_TAB_LABELS.all },
+		...MOVIE_STATUSES.map((s): FilterTab => ({ filter: s, label: FILTER_TAB_LABELS[s] }))
+	];
+
+	function createdAtMs(movie: { createdAt: Date | string }): number {
+		const t = new Date(movie.createdAt).getTime();
+		return Number.isFinite(t) ? t : 0;
+	}
+
 	let { data, form }: { data: PageServerData; form?: ActionData } = $props();
+
+	let listStatusFilter = $state<ListStatusFilter>('all');
+	let listSortMode = $state<ListSortMode>('date_added');
+
+	let displayedMovies = $derived.by(() => {
+		let rows = [...data.movies];
+		if (listStatusFilter !== 'all') {
+			rows = rows.filter((m) => m.status === listStatusFilter);
+		}
+		rows.sort((a, b) => {
+			if (listSortMode === 'alphabetically') {
+				const c = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+				return c !== 0 ? c : a.id - b.id;
+			}
+			const d = createdAtMs(b) - createdAtMs(a);
+			return d !== 0 ? d : b.id - a.id;
+		});
+		return rows;
+	});
 
 	let query = $state('');
 	let searchResults = $state<SuggestHit[]>([]);
@@ -29,6 +84,31 @@
 
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let abortSuggest: AbortController | undefined;
+
+	let sortDropdownOpen = $state(false);
+	let sortDropdownEl: HTMLDivElement | undefined = $state();
+
+	onMount(() => {
+		const onDocClick = (e: MouseEvent) => {
+			const el = sortDropdownEl;
+			if (!el) return;
+			const t = e.target;
+			if (t instanceof Node && el.contains(t)) return;
+			sortDropdownOpen = false;
+		};
+		document.addEventListener('click', onDocClick, true);
+		return () => document.removeEventListener('click', onDocClick, true);
+	});
+
+	function toggleSortDropdown(e: MouseEvent): void {
+		e.stopPropagation();
+		sortDropdownOpen = !sortDropdownOpen;
+	}
+
+	function chooseSort(mode: ListSortMode): void {
+		listSortMode = mode;
+		sortDropdownOpen = false;
+	}
 
 	async function runSuggest(raw: string) {
 		const trimmed = raw.trim();
@@ -87,6 +167,12 @@
 		debounceTimer = setTimeout(() => void runSuggest(value), 320);
 	}
 </script>
+
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape') sortDropdownOpen = false;
+	}}
+/>
 
 <svelte:head>
 	<title>Moviemate</title>
@@ -206,80 +292,156 @@
 		{#if data.movies.length === 0}
 			<p class="muted">No movies yet. Search above and add a film.</p>
 		{:else}
-			<ul class="movie-list">
-				{#each data.movies as m (m.id)}
-					{@const listPoster = posterSrc(m.posterPath, 'w92')}
-					<li class="movie-item">
-						<div class="movie-item-row">
-							<div class="movie-item-main">
-								<div class="movie-item-thumb">
-									{#if listPoster}
-										<img
-											src={listPoster}
-											alt=""
-											width="48"
-											height="72"
-											class="movie-item-img"
-											loading="lazy"
-										/>
-									{:else}
-										<div class="poster-placeholder poster-placeholder--list" aria-hidden="true">
-											<Film size={20} strokeWidth={1.5} class="icon-muted" />
-										</div>
-									{/if}
-								</div>
-								<div class="movie-item-title-row">
-									<span class={`movie-status-dot movie-status-dot--${m.status}`} aria-hidden="true"
-									></span>
-									<span class="movie-item-title">{m.title}</span>
-								</div>
-							</div>
-							<div class="movie-item-controls">
-								<form
-									method="post"
-									action="?/updateMovieStatus"
-									class="movie-status-form"
-									use:enhance={() => {
-										const updatingId = m.id;
-										statusUpdatingId = updatingId;
-										return async ({ update }) => {
-											await update();
-											statusUpdatingId = null;
-										};
-									}}
-								>
-									<input type="hidden" name="movieId" value={m.id} />
-									<label class="sr-only" for={`movie-status-${m.id}`}>Status for {m.title}</label>
-									<div class="movie-status-select-wrap">
-										<select
-											id={`movie-status-${m.id}`}
-											name="status"
-											class="movie-status-select"
-											disabled={statusUpdatingId === m.id}
-											onchange={(e) => e.currentTarget.form?.requestSubmit()}
-										>
-											{#each MOVIE_STATUSES as s (s)}
-												<option value={s} selected={s === m.status}>{MOVIE_STATUS_LABELS[s]}</option
-												>
-											{/each}
-										</select>
-									</div>
-								</form>
-								<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
-									<input type="hidden" name="movieId" value={m.id} />
+			<div class="list-controls">
+				<div class="list-controls-row">
+					<div class="list-filter-tabs" role="tablist" aria-label="Filter by status">
+						{#each FILTER_TABS as { filter: f, label } (f)}
+							<button
+								type="button"
+								class="list-filter-tab"
+								role="tab"
+								id={`list-tab-${f}`}
+								aria-selected={listStatusFilter === f}
+								tabindex={listStatusFilter === f ? 0 : -1}
+								onclick={() => (listStatusFilter = f)}
+								{...FILTER_TAB_ARIA_HINT[f] ? { 'aria-label': FILTER_TAB_ARIA_HINT[f]! } : {}}
+							>
+								{label}
+							</button>
+						{/each}
+					</div>
+					<div class="list-sort-dropdown" bind:this={sortDropdownEl}>
+						<button
+							type="button"
+							class="list-sort-trigger"
+							id="list-sort-trigger"
+							aria-expanded={sortDropdownOpen}
+							aria-haspopup="menu"
+							aria-controls="list-sort-menu"
+							onclick={(e) => toggleSortDropdown(e)}
+						>
+							<ArrowUpDown
+								size={14}
+								strokeWidth={1.75}
+								class="list-sort-trigger-icon icon-muted"
+								aria-hidden="true"
+							/>
+							<span class="list-sort-trigger-label">
+								<span class="list-sort-trigger-prefix">Sort:</span>
+								<span class="list-sort-trigger-value">{SORT_OPTION_LABELS[listSortMode]}</span>
+							</span>
+							<ChevronDown
+								size={14}
+								strokeWidth={2}
+								class="list-sort-trigger-chevron"
+								aria-hidden="true"
+							/>
+						</button>
+						{#if sortDropdownOpen}
+							<div
+								id="list-sort-menu"
+								class="list-sort-menu"
+								role="menu"
+								aria-labelledby="list-sort-trigger"
+							>
+								{#each SORT_MODES_ORDER as mode (mode)}
 									<button
-										type="submit"
-										class="button-remove button-has-icon"
-										aria-label="Remove from list"
+										type="button"
+										class="list-sort-menu-item"
+										class:list-sort-menu-item--selected={listSortMode === mode}
+										role="menuitemradio"
+										aria-checked={listSortMode === mode}
+										onclick={() => chooseSort(mode)}
 									>
-										<Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
+										{SORT_OPTION_LABELS[mode]}
 									</button>
-								</form>
+								{/each}
 							</div>
-						</div>
-					</li>
-				{/each}
-			</ul>
+						{/if}
+					</div>
+				</div>
+			</div>
+			{#if displayedMovies.length === 0}
+				<p class="muted">No movies match this filter.</p>
+			{:else}
+				<ul class="movie-list">
+					{#each displayedMovies as m (m.id)}
+						{@const listPoster = posterSrc(m.posterPath, 'w92')}
+						<li class="movie-item">
+							<div class="movie-item-row">
+								<div class="movie-item-main">
+									<div class="movie-item-thumb">
+										{#if listPoster}
+											<img
+												src={listPoster}
+												alt=""
+												width="48"
+												height="72"
+												class="movie-item-img"
+												loading="lazy"
+											/>
+										{:else}
+											<div class="poster-placeholder poster-placeholder--list" aria-hidden="true">
+												<Film size={20} strokeWidth={1.5} class="icon-muted" />
+											</div>
+										{/if}
+									</div>
+									<div class="movie-item-title-row">
+										<span
+											class={`movie-status-dot movie-status-dot--${m.status}`}
+											aria-hidden="true"
+										></span>
+										<span class="movie-item-title">{m.title}</span>
+									</div>
+								</div>
+								<div class="movie-item-controls">
+									<form
+										method="post"
+										action="?/updateMovieStatus"
+										class="movie-status-form"
+										use:enhance={() => {
+											const updatingId = m.id;
+											statusUpdatingId = updatingId;
+											return async ({ update }) => {
+												await update();
+												statusUpdatingId = null;
+											};
+										}}
+									>
+										<input type="hidden" name="movieId" value={m.id} />
+										<label class="sr-only" for={`movie-status-${m.id}`}>Status for {m.title}</label>
+										<div class="movie-status-select-wrap">
+											<select
+												id={`movie-status-${m.id}`}
+												name="status"
+												class="movie-status-select"
+												disabled={statusUpdatingId === m.id}
+												onchange={(e) => e.currentTarget.form?.requestSubmit()}
+											>
+												{#each MOVIE_STATUSES as s (s)}
+													<option value={s} selected={s === m.status}
+														>{MOVIE_STATUS_LABELS[s]}</option
+													>
+												{/each}
+											</select>
+										</div>
+									</form>
+									<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
+										<input type="hidden" name="movieId" value={m.id} />
+										<button
+											type="submit"
+											class="button-remove button-has-icon"
+											aria-label="Remove from list"
+										>
+											<Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
+										</button>
+									</form>
+								</div>
+							</div>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		{/if}
 	</section>
 </main>
