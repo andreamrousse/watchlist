@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { dbErrorLooksLikeMissingMigration } from '$lib/server/db-errors';
+import { and, asc, desc, eq, isNotNull, isNull, or } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { movie } from '$lib/server/db/schema';
 import { fetchMovieVoteStats, firstSearchHit } from '$lib/server/tmdb';
@@ -16,6 +17,8 @@ export type MovieRow = {
 	status: MovieStatus;
 	tmdbVoteAverage: number | null;
 	tmdbVoteCount: number | null;
+	/** Four-digit year from TMDB; null if unknown (legacy rows until backfill). */
+	releaseYear: string | null;
 	createdAt: Date;
 };
 
@@ -36,6 +39,13 @@ function parseTmdbIdFromForm(raw: FormDataEntryValue | null): number | null {
 	return n;
 }
 
+function parseReleaseYearFromForm(raw: FormDataEntryValue | null): string | null {
+	if (raw === null || typeof raw !== 'string') return null;
+	const t = raw.trim();
+	if (!t || !/^\d{4}$/.test(t)) return null;
+	return t;
+}
+
 function parsePosterPathFromForm(raw: FormDataEntryValue | null): string | null {
 	if (raw === null || raw === '') return null;
 	if (typeof raw !== 'string') return null;
@@ -53,35 +63,82 @@ function normalizeTitle(raw: string): string | null {
 	return t;
 }
 
-export function listMoviesForUser(userId: string): Promise<MovieRow[]> {
-	return db
-		.select({
-			id: movie.id,
-			title: movie.title,
-			tmdbId: movie.tmdbId,
-			posterPath: movie.posterPath,
-			status: movie.status,
-			tmdbVoteAverage: movie.tmdbVoteAverage,
-			tmdbVoteCount: movie.tmdbVoteCount,
-			createdAt: movie.createdAt
-		})
-		.from(movie)
-		.where(eq(movie.userId, userId))
-		.orderBy(desc(movie.createdAt))
-		.then((rows): MovieRow[] =>
-			rows.map((r) => ({
-				...r,
-				status: r.status as MovieStatus,
-				tmdbVoteAverage: r.tmdbVoteAverage == null ? null : Number(r.tmdbVoteAverage),
-				tmdbVoteCount: r.tmdbVoteCount == null ? null : r.tmdbVoteCount
-			}))
+const baseListSelect = {
+	id: movie.id,
+	title: movie.title,
+	tmdbId: movie.tmdbId,
+	posterPath: movie.posterPath,
+	status: movie.status,
+	tmdbVoteAverage: movie.tmdbVoteAverage,
+	tmdbVoteCount: movie.tmdbVoteCount,
+	createdAt: movie.createdAt
+} as const;
+
+function mapRowsToMovieRow(
+	rows: {
+		id: number;
+		title: string;
+		tmdbId: number | null;
+		posterPath: string | null;
+		status: string;
+		tmdbVoteAverage: number | null;
+		tmdbVoteCount: number | null;
+		createdAt: Date;
+	}[],
+	releaseYear: string | null
+): MovieRow[] {
+	return rows.map((r) => ({
+		id: r.id,
+		title: r.title,
+		tmdbId: r.tmdbId,
+		posterPath: r.posterPath,
+		status: r.status as MovieStatus,
+		tmdbVoteAverage: r.tmdbVoteAverage == null ? null : Number(r.tmdbVoteAverage),
+		tmdbVoteCount: r.tmdbVoteCount == null ? null : r.tmdbVoteCount,
+		releaseYear,
+		createdAt: r.createdAt
+	}));
+}
+
+export async function listMoviesForUser(userId: string): Promise<MovieRow[]> {
+	try {
+		const rows = await db
+			.select({
+				...baseListSelect,
+				releaseYear: movie.tmdbReleaseYear
+			})
+			.from(movie)
+			.where(eq(movie.userId, userId))
+			.orderBy(desc(movie.createdAt));
+		return rows.map((r) => ({
+			id: r.id,
+			title: r.title,
+			tmdbId: r.tmdbId,
+			posterPath: r.posterPath,
+			status: r.status as MovieStatus,
+			tmdbVoteAverage: r.tmdbVoteAverage == null ? null : Number(r.tmdbVoteAverage),
+			tmdbVoteCount: r.tmdbVoteCount == null ? null : r.tmdbVoteCount,
+			releaseYear: r.releaseYear,
+			createdAt: r.createdAt
+		}));
+	} catch (e) {
+		if (!dbErrorLooksLikeMissingMigration(e)) throw e;
+		console.warn(
+			'listMoviesForUser: column tmdb_release_year missing; years hidden until you run `pnpm db:migrate`.'
 		);
+		const rows = await db
+			.select(baseListSelect)
+			.from(movie)
+			.where(eq(movie.userId, userId))
+			.orderBy(desc(movie.createdAt));
+		return mapRowsToMovieRow(rows, null);
+	}
 }
 
 export async function createMovie(
 	userId: string,
 	rawTitle: string,
-	tmdb: { tmdbId: number | null; posterPath: string | null }
+	tmdb: { tmdbId: number | null; posterPath: string | null; releaseYear: string | null }
 ): Promise<{ ok: true; row: MovieRow } | { ok: false; error: string }> {
 	const title = normalizeTitle(rawTitle);
 	if (!title) {
@@ -93,31 +150,72 @@ export async function createMovie(
 	}
 
 	const voteStats = await fetchMovieVoteStats(tmdb.tmdbId);
+	const releaseYear = voteStats?.releaseYear ?? tmdb.releaseYear;
 
-	const [row] = await db
-		.insert(movie)
-		.values({
-			userId,
-			title,
-			tmdbId: tmdb.tmdbId,
-			posterPath: tmdb.posterPath,
-			tmdbVoteAverage: voteStats?.voteAverage ?? null,
-			tmdbVoteCount: voteStats?.voteCount ?? null
-		})
-		.returning({
-			id: movie.id,
-			title: movie.title,
-			tmdbId: movie.tmdbId,
-			posterPath: movie.posterPath,
-			status: movie.status,
-			tmdbVoteAverage: movie.tmdbVoteAverage,
-			tmdbVoteCount: movie.tmdbVoteCount,
-			createdAt: movie.createdAt
-		});
-	if (!row) {
-		return { ok: false, error: 'Could not add movie.' };
+	const returningFull = {
+		id: movie.id,
+		title: movie.title,
+		tmdbId: movie.tmdbId,
+		posterPath: movie.posterPath,
+		status: movie.status,
+		tmdbVoteAverage: movie.tmdbVoteAverage,
+		tmdbVoteCount: movie.tmdbVoteCount,
+		releaseYear: movie.tmdbReleaseYear,
+		createdAt: movie.createdAt
+	};
+
+	const returningNoYear = {
+		id: movie.id,
+		title: movie.title,
+		tmdbId: movie.tmdbId,
+		posterPath: movie.posterPath,
+		status: movie.status,
+		tmdbVoteAverage: movie.tmdbVoteAverage,
+		tmdbVoteCount: movie.tmdbVoteCount,
+		createdAt: movie.createdAt
+	};
+
+	try {
+		const [row] = await db
+			.insert(movie)
+			.values({
+				userId,
+				title,
+				tmdbId: tmdb.tmdbId,
+				posterPath: tmdb.posterPath,
+				tmdbVoteAverage: voteStats?.voteAverage ?? null,
+				tmdbVoteCount: voteStats?.voteCount ?? null,
+				tmdbReleaseYear: releaseYear
+			})
+			.returning(returningFull);
+		if (!row) {
+			return { ok: false, error: 'Could not add movie.' };
+		}
+		return { ok: true, row: normalizeMovieRow(row) };
+	} catch (e) {
+		if (!dbErrorLooksLikeMissingMigration(e)) throw e;
+		console.warn(
+			'createMovie: column tmdb_release_year missing; insert without year. Run `pnpm db:migrate` to add it.'
+		);
+		const [row] = await db
+			.insert(movie)
+			.values({
+				userId,
+				title,
+				tmdbId: tmdb.tmdbId,
+				posterPath: tmdb.posterPath,
+				tmdbVoteAverage: voteStats?.voteAverage ?? null,
+				tmdbVoteCount: voteStats?.voteCount ?? null
+			})
+			.returning(returningNoYear);
+		if (!row) {
+			return { ok: false, error: 'Could not add movie.' };
+		}
+		return {
+			ok: true,
+			row: normalizeMovieRow({ ...row, releaseYear: null, status: row.status })
+		};
 	}
-	return { ok: true, row: normalizeMovieRow(row) };
 }
 
 function normalizeMovieRow(row: {
@@ -128,6 +226,7 @@ function normalizeMovieRow(row: {
 	status: string;
 	tmdbVoteAverage: number | null;
 	tmdbVoteCount: number | null;
+	releaseYear: string | null;
 	createdAt: Date;
 }): MovieRow {
 	return {
@@ -142,15 +241,17 @@ export function parseTmdbPayloadFromForm(formData: FormData):
 	| {
 			tmdbId: number | null;
 			posterPath: string | null;
+			releaseYear: string | null;
 			ok: true;
 	  }
 	| { ok: false; error: string } {
 	const tmdbId = parseTmdbIdFromForm(formData.get('tmdbId'));
 	const posterPath = parsePosterPathFromForm(formData.get('posterPath'));
+	const releaseYear = parseReleaseYearFromForm(formData.get('releaseYear'));
 	if (tmdbId === null) {
 		return { ok: false, error: 'Choose a movie from the search results.' };
 	}
-	return { ok: true, tmdbId, posterPath };
+	return { ok: true, tmdbId, posterPath, releaseYear };
 }
 
 export function parseStatusFromForm(raw: FormDataEntryValue | null): MovieStatus | null {
@@ -224,22 +325,78 @@ export async function backfillTmdbForUser(userId: string): Promise<void> {
 		const hit = await firstSearchHit(row.title);
 		if (!hit) continue;
 		const voteStats = await fetchMovieVoteStats(hit.tmdbId);
-		await db
-			.update(movie)
-			.set({
-				tmdbId: hit.tmdbId,
-				posterPath: hit.posterPath,
-				tmdbVoteAverage: voteStats?.voteAverage ?? null,
-				tmdbVoteCount: voteStats?.voteCount ?? null
-			})
-			.where(eq(movie.id, row.id));
+		const patchWithYear = {
+			tmdbId: hit.tmdbId,
+			posterPath: hit.posterPath,
+			tmdbVoteAverage: voteStats?.voteAverage ?? null,
+			tmdbVoteCount: voteStats?.voteCount ?? null,
+			tmdbReleaseYear: voteStats?.releaseYear ?? hit.releaseYear ?? null
+		};
+		const patchNoYear = {
+			tmdbId: hit.tmdbId,
+			posterPath: hit.posterPath,
+			tmdbVoteAverage: voteStats?.voteAverage ?? null,
+			tmdbVoteCount: voteStats?.voteCount ?? null
+		};
+		try {
+			await db.update(movie).set(patchWithYear).where(eq(movie.id, row.id));
+		} catch (e) {
+			if (!dbErrorLooksLikeMissingMigration(e)) throw e;
+			await db.update(movie).set(patchNoYear).where(eq(movie.id, row.id));
+		}
 	}
 }
 
 /**
- * Pulls TMDB vote_average / vote_count for rows that already have tmdbId but no cached stats.
+ * Pulls TMDB vote_average / vote_count (and release year when the column exists).
  */
-export async function backfillTmdbVotesForUser(userId: string): Promise<void> {
+async function backfillTmdbVotesWithYearColumn(userId: string): Promise<void> {
+	const stale = await db
+		.select({
+			id: movie.id,
+			tmdbId: movie.tmdbId,
+			tmdbVoteAverage: movie.tmdbVoteAverage,
+			tmdbReleaseYear: movie.tmdbReleaseYear
+		})
+		.from(movie)
+		.where(
+			and(
+				eq(movie.userId, userId),
+				isNotNull(movie.tmdbId),
+				or(isNull(movie.tmdbVoteAverage), isNull(movie.tmdbReleaseYear))
+			)
+		)
+		.orderBy(asc(movie.createdAt))
+		.limit(BACKFILL_BATCH);
+
+	for (const row of stale) {
+		if (row.tmdbId === null) continue;
+		const voteStats = await fetchMovieVoteStats(row.tmdbId);
+		if (!voteStats) continue;
+
+		const patch: {
+			tmdbVoteAverage?: number;
+			tmdbVoteCount?: number;
+			tmdbReleaseYear?: string;
+		} = {};
+		if (row.tmdbVoteAverage == null) {
+			patch.tmdbVoteAverage = voteStats.voteAverage;
+			patch.tmdbVoteCount = voteStats.voteCount;
+		}
+		if (row.tmdbReleaseYear == null && voteStats.releaseYear !== null) {
+			patch.tmdbReleaseYear = voteStats.releaseYear;
+		}
+		if (Object.keys(patch).length === 0) continue;
+
+		await db
+			.update(movie)
+			.set(patch)
+			.where(eq(movie.id, row.id));
+	}
+}
+
+/** Vote backfill only (for databases missing `tmdb_release_year`). */
+async function backfillTmdbVotesVoteFieldsOnly(userId: string): Promise<void> {
 	const stale = await db
 		.select({
 			id: movie.id,
@@ -261,5 +418,17 @@ export async function backfillTmdbVotesForUser(userId: string): Promise<void> {
 				tmdbVoteCount: voteStats.voteCount
 			})
 			.where(eq(movie.id, row.id));
+	}
+}
+
+export async function backfillTmdbVotesForUser(userId: string): Promise<void> {
+	try {
+		await backfillTmdbVotesWithYearColumn(userId);
+	} catch (e) {
+		if (!dbErrorLooksLikeMissingMigration(e)) throw e;
+		console.warn(
+			'backfillTmdbVotesForUser: column tmdb_release_year missing; running vote-stats backfill only. Run `pnpm db:migrate` after adding the migration.'
+		);
+		await backfillTmdbVotesVoteFieldsOnly(userId);
 	}
 }

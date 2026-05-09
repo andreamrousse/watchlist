@@ -18,6 +18,8 @@ export const movie = pgTable(
 		/** TMDB community score (typically 0–10); fetched from /movie/{id}. */
 		tmdbVoteAverage: real('tmdb_vote_average'),
 		tmdbVoteCount: integer('tmdb_vote_count'),
+		/** Four-digit theatrical year from TMDB (search or /movie/{id}); optional. */
+		tmdbReleaseYear: text('tmdb_release_year'),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(table) => [index('movie_userId_idx').on(table.userId)]

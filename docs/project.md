@@ -50,5 +50,5 @@ I will build a Watchlist app for the user to track the watched movies and the mo
 - Use design tokens in CSS
 - Use Lucide icon library https://lucide.dev/icons/
 - Avoid overcomplexity, keep it simple
-- Migrate, not push: DON'T use command db:push in Drizzle that skips the migration step. Always use db:generate followed by db:migrate.
+- **Drizzle migrations only:** use `pnpm db:generate` when the schema changes, then `pnpm db:migrate`. Never use `drizzle-kit push`; the `db:push` script is intentionally not in this repo.
 - DON'T store database querie in in a .svelte file. DON'T store HTML in a .server.ts

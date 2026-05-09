@@ -29,6 +29,23 @@ npm run dev
 npm run dev -- --open
 ```
 
+## Database schema
+
+Apply pending migrations (requires `DATABASE_URL` in the environment). Do **not** use `drizzle-kit push` for this project—use migrations only.
+
+```sh
+pnpm db:migrate
+```
+
+After changing `src/lib/server/db/schema.ts`, generate a new migration and commit the SQL under `drizzle/`:
+
+```sh
+pnpm db:generate
+pnpm db:migrate
+```
+
+Netlify runs `pnpm db:migrate && pnpm run build` before deploy (see `netlify.toml`); add `DATABASE_URL` to the site’s **build** environment so migrations can run.
+
 ## Building
 
 To create a production version of your app:

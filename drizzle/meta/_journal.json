@@ -57,6 +57,13 @@
       "when": 1778400000000,
       "tag": "0007_rating_scale_ten",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778500000001,
+      "tag": "0008_tmdb_release_year",
+      "breakpoints": true
     }
   ]
 }

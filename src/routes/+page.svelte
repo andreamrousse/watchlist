@@ -57,22 +57,43 @@
 		return Number.isFinite(t) ? t : 0;
 	}
 
+	/** Strip leading English articles so "The Lion King" sorts near L, not after S. */
+	function titleForAlphabeticalSort(title: string): string {
+		const t = title.normalize('NFKC').trim();
+		const stripped = t.replace(/^(?:the|a|an)\s+/i, '').trim();
+		return stripped.length > 0 ? stripped : t;
+	}
+
 	let { data, form }: { data: PageServerData; form?: ActionData } = $props();
 
 	let listStatusFilter = $state<ListStatusFilter>('all');
 	let listSortMode = $state<ListSortMode>('date_added');
 
 	let displayedMovies = $derived.by(() => {
+		const sortMode = listSortMode;
 		let rows = [...data.movies];
 		if (listStatusFilter !== 'all') {
 			rows = rows.filter((m) => m.status === listStatusFilter);
 		}
 		rows.sort((a, b) => {
-			if (listSortMode === 'alphabetically') {
-				const c = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
-				return c !== 0 ? c : a.id - b.id;
+			if (sortMode === 'alphabetically') {
+				const ta = titleForAlphabeticalSort(a.title);
+				const tb = titleForAlphabeticalSort(b.title);
+				const c = ta.localeCompare(tb, undefined, {
+					sensitivity: 'base',
+					numeric: true
+				});
+				if (c !== 0) return c;
+				const tie = a.title
+					.normalize('NFKC')
+					.trim()
+					.localeCompare(b.title.normalize('NFKC').trim(), undefined, {
+						sensitivity: 'base',
+						numeric: true
+					});
+				return tie !== 0 ? tie : a.id - b.id;
 			}
-			if (listSortMode === 'public_score') {
+			if (sortMode === 'public_score') {
 				const diff = publicScoreSortKey(b) - publicScoreSortKey(a);
 				if (diff !== 0) return diff;
 				const d = createdAtMs(b) - createdAtMs(a);
@@ -336,6 +357,7 @@
 								<input type="hidden" name="title" value={hit.title} />
 								<input type="hidden" name="tmdbId" value={hit.tmdbId} />
 								<input type="hidden" name="posterPath" value={hit.posterPath ?? ''} />
+								<input type="hidden" name="releaseYear" value={hit.releaseYear ?? ''} />
 								<button
 									type="submit"
 									class="button button-has-icon button-suggest-add"
@@ -482,8 +504,11 @@
 										{/if}
 									</div>
 									<div class="movie-item-meta">
-										<div class="movie-item-title-row">
+										<div class="movie-item-heading">
 											<span class="movie-item-title">{m.title}</span>
+											{#if m.releaseYear}
+												<span class="movie-item-year muted">{m.releaseYear}</span>
+											{/if}
 										</div>
 										{#if m.tmdbVoteAverage != null && Number.isFinite(Number(m.tmdbVoteAverage))}
 											{@const tmdbAvg = Number(m.tmdbVoteAverage)}

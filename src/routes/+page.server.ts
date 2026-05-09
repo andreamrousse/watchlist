@@ -36,7 +36,8 @@ export const actions: Actions = {
 		}
 		const result = await movies.createMovie(user.id, title, {
 			tmdbId: tmdbParts.tmdbId,
-			posterPath: tmdbParts.posterPath
+			posterPath: tmdbParts.posterPath,
+			releaseYear: tmdbParts.releaseYear
 		});
 		if (!result.ok) {
 			return fail(400, { message: result.error });

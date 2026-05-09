@@ -62,12 +62,14 @@ export async function firstSearchHit(query: string): Promise<TmdbSearchHit | nul
 type TmdbMovieDetailsPayload = {
 	vote_average?: unknown;
 	vote_count?: unknown;
+	release_date?: string | null;
 };
 
 /** TMDB aggregates (not logged-in user scores). Cached in our DB beside each row. */
 export async function fetchMovieVoteStats(tmdbId: number): Promise<{
 	voteAverage: number;
 	voteCount: number;
+	releaseYear: string | null;
 } | null> {
 	const token = env.TMDB_API_KEY;
 	if (!token?.trim()) return null;
@@ -86,5 +88,11 @@ export async function fetchMovieVoteStats(tmdbId: number): Promise<{
 	if (typeof vc === 'number' && Number.isFinite(vc) && vc >= 0) {
 		voteCount = Math.round(vc);
 	}
-	return { voteAverage: va, voteCount };
+
+	const rd = data.release_date;
+	let releaseYear: string | null = null;
+	if (typeof rd === 'string' && rd.length >= 4 && /^\d{4}/.test(rd.slice(0, 4))) {
+		releaseYear = rd.slice(0, 4);
+	}
+	return { voteAverage: va, voteCount, releaseYear };
 }
