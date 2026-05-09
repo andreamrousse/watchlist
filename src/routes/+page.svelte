@@ -22,6 +22,8 @@
 		title: string;
 		posterPath: string | null;
 		releaseYear: string | null;
+		tmdbVoteAverage?: number | null;
+		tmdbVoteCount?: number | null;
 	};
 
 	type ListStatusFilter = 'all' | MovieStatus;
@@ -362,8 +364,38 @@
 								{/if}
 							</div>
 							<p class="search-suggest-title">{hit.title}</p>
-							{#if hit.releaseYear}
-								<p class="search-suggest-year muted">{hit.releaseYear}</p>
+							{#if hit.releaseYear || ((hit.tmdbVoteCount ?? 0) > 0 && hit.tmdbVoteAverage != null && Number.isFinite(Number(hit.tmdbVoteAverage)))}
+								<p class="search-suggest-meta">
+									{#if hit.releaseYear}
+										<span class="search-suggest-meta-year muted">{hit.releaseYear}</span>
+									{/if}
+									{#if hit.releaseYear && (hit.tmdbVoteCount ?? 0) > 0 && hit.tmdbVoteAverage != null && Number.isFinite(Number(hit.tmdbVoteAverage))}
+										<span class="search-suggest-meta-sep muted" aria-hidden="true">·</span>
+									{/if}
+									{#if (hit.tmdbVoteCount ?? 0) > 0 && hit.tmdbVoteAverage != null && Number.isFinite(Number(hit.tmdbVoteAverage))}
+										{@const sugAvg = Number(hit.tmdbVoteAverage)}
+										{@const sugVotes = hit.tmdbVoteCount ?? 0}
+										{@const sugScoreTitle =
+											`Community rating ${sugAvg.toFixed(1)} out of 10.` +
+											(sugVotes > 0 ? ` ${formatCompactVotes(sugVotes)}` : '')}
+										<span
+											class="search-suggest-score-inline"
+											title={sugScoreTitle}
+											aria-label={sugScoreTitle}
+										>
+											<span class="search-suggest-score-visual" aria-hidden="true">
+												<Star
+													size={11}
+													strokeWidth={2}
+													class="search-suggest-score-star"
+													fill="currentColor"
+												/>
+												<span class="search-suggest-score-value">{sugAvg.toFixed(1)}</span>
+												<span class="search-suggest-score-max">/10</span>
+											</span>
+										</span>
+									{/if}
+								</p>
 							{/if}
 							<form
 								method="post"

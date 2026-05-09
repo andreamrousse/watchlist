@@ -1769,9 +1769,57 @@ a:hover {
 	overflow: hidden;
 }
 
-.search-suggest-year {
+.search-suggest-meta {
 	margin: 0;
+	min-width: 0;
 	font-size: var(--font-size-xs);
+	line-height: var(--line-height-tight);
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: var(--space-2xs);
+	row-gap: 0.0625rem;
+}
+
+.search-suggest-meta-year {
+	font-variant-numeric: tabular-nums;
+}
+
+.search-suggest-meta-sep {
+	user-select: none;
+	opacity: 0.55;
+}
+
+.search-suggest-score-inline {
+	display: inline-flex;
+	align-items: center;
+	min-width: 0;
+	max-width: 100%;
+	color: var(--color-text);
+	cursor: default;
+}
+
+.search-suggest-score-visual {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.15rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.search-suggest-score-star {
+	flex-shrink: 0;
+	display: block;
+	color: var(--color-accent);
+}
+
+.search-suggest-score-value {
+	font-weight: var(--font-weight-semibold);
+}
+
+.search-suggest-score-max {
+	font-size: 0.65rem;
+	font-weight: var(--font-weight-normal);
+	color: var(--color-text-muted);
 }
 
 .search-suggest-add {

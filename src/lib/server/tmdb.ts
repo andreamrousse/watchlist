@@ -7,6 +7,9 @@ export type TmdbSearchHit = {
 	title: string;
 	posterPath: string | null;
 	releaseYear: string | null;
+	/** TMDB community average (1–10); null when unknown or no votes. */
+	tmdbVoteAverage: number | null;
+	tmdbVoteCount: number | null;
 };
 
 type TmdbSearchMovie = {
@@ -15,6 +18,8 @@ type TmdbSearchMovie = {
 	original_title?: string;
 	poster_path?: string | null;
 	release_date?: string | null;
+	vote_average?: number;
+	vote_count?: number;
 };
 
 export async function searchMovies(query: string): Promise<TmdbSearchHit[]> {
@@ -37,6 +42,17 @@ export async function searchMovies(query: string): Promise<TmdbSearchHit[]> {
 	const results = data.results;
 	if (!Array.isArray(results)) return [];
 
+	const votesFromHit = (
+		r: TmdbSearchMovie
+	): { average: number; count: number } | null => {
+		const avg = r.vote_average;
+		const rawCnt = r.vote_count;
+		if (typeof avg !== 'number' || !Number.isFinite(avg)) return null;
+		const count = typeof rawCnt === 'number' && Number.isFinite(rawCnt) ? Math.max(0, Math.round(rawCnt)) : 0;
+		if (count <= 0) return null;
+		return { average: avg, count };
+	};
+
 	return results.map((r) => {
 		const releaseDate = r.release_date;
 		let releaseYear: string | null = null;
@@ -44,11 +60,14 @@ export async function searchMovies(query: string): Promise<TmdbSearchHit[]> {
 			releaseYear = releaseDate.slice(0, 4);
 		}
 		const title = String(r.title || r.original_title || '').trim() || 'Untitled';
+		const votes = votesFromHit(r);
 		return {
 			tmdbId: r.id,
 			title,
 			posterPath: r.poster_path ?? null,
-			releaseYear
+			releaseYear,
+			tmdbVoteAverage: votes?.average ?? null,
+			tmdbVoteCount: votes?.count ?? null
 		};
 	});
 }
