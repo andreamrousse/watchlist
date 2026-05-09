@@ -329,15 +329,31 @@ body {
 	top: calc(100% + var(--space-xs));
 	right: 0;
 	z-index: 20;
-	min-width: min(17rem, calc(100vw - 2 * var(--space-md)));
-	padding: var(--space-md);
+	box-sizing: border-box;
+	min-width: 0;
+	width: max-content;
+	max-width: min(17rem, calc(100vw - 2 * var(--space-md)));
+	padding: 0;
+	overflow: hidden;
 	background: var(--color-surface);
 	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-xl);
 	box-shadow: var(--shadow-md);
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-md);
+	gap: 0;
+}
+
+.user-menu-dropdown-body {
+	padding: var(--space-md) var(--space-md) var(--space-sm);
+}
+
+.user-menu-dropdown-footer {
+	padding: var(--space-sm) var(--space-md) var(--space-sm);
+	border-top: var(--border-width) solid var(--color-border);
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
 }
 
 .user-menu-email {
@@ -346,12 +362,46 @@ body {
 	line-height: var(--line-height-relaxed);
 	word-break: break-word;
 	overflow-wrap: anywhere;
-	color: var(--color-text);
+	color: var(--color-text-muted);
+}
+
+.user-menu-signout-form {
+	margin: 0;
+	width: fit-content;
+	max-width: 100%;
 }
 
 .user-menu-dropdown .user-menu-signout {
-	width: 100%;
-	justify-content: center;
+	box-sizing: border-box;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-sm);
+	margin: 0;
+	padding: var(--space-xs) var(--space-2xs);
+	font: inherit;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	line-height: var(--line-height-tight);
+	text-align: right;
+	color: var(--color-text-muted);
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-md);
+	transition:
+		color var(--duration-fast) var(--ease-default),
+		background var(--duration-fast) var(--ease-default);
+}
+
+.user-menu-dropdown .user-menu-signout:hover {
+	color: var(--color-text);
+	background: color-mix(in srgb, var(--color-border-strong) 12%, transparent);
+}
+
+.user-menu-dropdown .user-menu-signout:focus-visible {
+	outline: var(--ring-width) solid var(--color-focus-ring);
+	outline-offset: var(--ring-offset);
 }
 
 @media (prefers-reduced-motion: reduce) {

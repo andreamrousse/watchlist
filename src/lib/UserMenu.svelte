@@ -59,27 +59,28 @@
 
 	{#if open}
 		<div id="user-menu-panel" class="user-menu-dropdown" role="menu">
-			<p class="user-menu-email">{email}</p>
-			<form
-				method="post"
-				action="/?/signOut"
-				role="none"
-				use:enhance={() => {
-					return async ({ update }) => {
-						await update();
-						close();
-					};
-				}}
-			>
-				<button
-					type="submit"
-					class="user-menu-signout button button-secondary button-has-icon"
-					role="menuitem"
+			<div class="user-menu-dropdown-body">
+				<p class="user-menu-email">{email}</p>
+			</div>
+			<div class="user-menu-dropdown-footer">
+				<form
+					method="post"
+					action="/?/signOut"
+					class="user-menu-signout-form"
+					role="none"
+					use:enhance={() => {
+						return async ({ update }) => {
+							await update();
+							close();
+						};
+					}}
 				>
-					<LogOut size={18} strokeWidth={1.65} aria-hidden="true" />
-					<span>Sign out</span>
-				</button>
-			</form>
+					<button type="submit" class="user-menu-signout button-has-icon" role="menuitem">
+						<LogOut size={16} strokeWidth={1.65} aria-hidden="true" />
+						<span>Sign out</span>
+					</button>
+				</form>
+			</div>
 		</div>
 	{/if}
 </div>
