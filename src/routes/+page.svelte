@@ -6,7 +6,9 @@
 	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, type MovieStatus } from '$lib/movie-status';
 	import Film from 'lucide-svelte/icons/film';
 	import ImageOff from 'lucide-svelte/icons/image-off';
+	import Keyboard from 'lucide-svelte/icons/keyboard';
 	import Plus from 'lucide-svelte/icons/plus';
+	import SearchSlash from 'lucide-svelte/icons/search-slash';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import ArrowUpDown from 'lucide-svelte/icons/arrow-up-down';
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
@@ -188,12 +190,12 @@
 			meant.
 		</p>
 		<div class="search-field-wrap">
-			<label class="sr-only" for="q">Search movies</label>
+			<label class="sr-only" for="q">Search movies by title</label>
 			<input
 				id="q"
 				type="search"
 				autocomplete="off"
-				placeholder="Search by title"
+				placeholder="Search by movie title"
 				class="input search-field-input"
 				maxlength="500"
 				bind:value={query}
@@ -270,9 +272,35 @@
 				</ul>
 			</div>
 		{:else if suggestHadZero && !suggestLoading}
-			<p class="muted search-empty">No matches. Try different wording.</p>
+			<div class="search-callout" role="status">
+				<SearchSlash
+					size={22}
+					strokeWidth={1.6}
+					class="search-callout-icon icon-muted"
+					aria-hidden="true"
+				/>
+				<div class="search-callout-body">
+					<p class="search-callout-title">Nothing matched</p>
+					<p class="search-callout-detail">
+						Try simpler words or a different spelling—we’ll show new picks as you go.
+					</p>
+				</div>
+			</div>
 		{:else if query.trim().length > 0 && query.trim().length < 2}
-			<p class="muted search-hint">Type at least two characters to search.</p>
+			<div class="search-callout" role="status">
+				<Keyboard
+					size={22}
+					strokeWidth={1.6}
+					class="search-callout-icon icon-muted"
+					aria-hidden="true"
+				/>
+				<div class="search-callout-body">
+					<p class="search-callout-title">One more letter</p>
+					<p class="search-callout-detail">
+						Add one more character—then we’ll start surfacing titles that match what you typed.
+					</p>
+				</div>
+			</div>
 		{/if}
 	</section>
 

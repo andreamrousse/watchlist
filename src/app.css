@@ -1163,13 +1163,33 @@ a:hover {
 	width: 100%;
 }
 
-.search-status {
-	margin: var(--space-xs) 0 0;
-	font-size: var(--font-size-sm);
+/* Use a neutral clear control instead of the default blue WebKit search cancel. */
+.search-field-input::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 1.125rem;
+	height: 1.125rem;
+	margin-inline-end: var(--space-2xs);
+	cursor: pointer;
+	background-color: var(--color-text-muted);
+	-webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+	mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+	opacity: 0.92;
 }
 
-.search-hint {
-	margin: var(--space-sm) 0 0;
+.search-field-input::-webkit-search-cancel-button:hover {
+	opacity: 1;
+	background-color: var(--color-text);
+}
+
+.search-status {
+	margin: var(--space-xs) 0 0;
 	font-size: var(--font-size-sm);
 }
 
@@ -1182,8 +1202,44 @@ a:hover {
 	font-size: var(--font-size-sm);
 }
 
-.search-empty {
+.search-callout {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: var(--space-md);
+	width: 100%;
 	margin-top: var(--space-md);
+	padding: var(--space-md);
+	border-radius: var(--radius-lg);
+	border: var(--border-width) solid var(--color-border);
+	background: var(--color-surface-raised);
+	box-shadow: var(--shadow-xs);
+}
+
+.search-callout-icon {
+	flex-shrink: 0;
+	margin-top: 0.0625rem;
+}
+
+.search-callout-body {
+	min-width: 0;
+	flex: 1;
+}
+
+.search-callout-title {
+	margin: 0 0 var(--space-2xs);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+	color: var(--color-text);
+}
+
+.search-callout-detail {
+	margin: 0;
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-relaxed);
+	color: var(--color-text-muted);
 }
 
 .search-suggest-rail-wrap {
