@@ -241,12 +241,6 @@
 			<ul class="movie-list">
 				{#each data.movies as m (m.id)}
 					{@const listPoster = posterSrc(m.posterPath, 'w92')}
-					{@const wrapClass =
-						m.status === 'want_to_watch'
-							? 'movie-status-select-wrap--want_to_watch'
-							: m.status === 'watching'
-								? 'movie-status-select-wrap--watching'
-								: 'movie-status-select-wrap--watched'}
 					<li class="movie-item">
 						<div class="movie-item-row">
 							<div class="movie-item-main">
@@ -266,7 +260,11 @@
 										</div>
 									{/if}
 								</div>
-								<span class="movie-item-title">{m.title}</span>
+								<div class="movie-item-title-row">
+									<span class={`movie-status-dot movie-status-dot--${m.status}`} aria-hidden="true"
+									></span>
+									<span class="movie-item-title">{m.title}</span>
+								</div>
 							</div>
 							<div class="movie-item-controls">
 								<form
@@ -284,7 +282,7 @@
 								>
 									<input type="hidden" name="movieId" value={m.id} />
 									<label class="sr-only" for={`movie-status-${m.id}`}>Status for {m.title}</label>
-									<div class={`movie-status-select-wrap ${wrapClass}`}>
+									<div class="movie-status-select-wrap">
 										<select
 											id={`movie-status-${m.id}`}
 											name="status"

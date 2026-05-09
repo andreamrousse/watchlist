@@ -69,22 +69,10 @@
 	--color-positive: #33805c;
 	--color-positive-strong: #2a6448;
 
-	/* Watching status badges */
-	--color-status-want-bg: color-mix(
-		in srgb,
-		var(--color-text-muted) 14%,
-		var(--color-surface-raised)
-	);
-	--color-status-want-text: var(--color-text-muted);
-	--color-status-watching-bg: var(--color-accent-subtle);
-	--color-status-watching-text: var(--color-accent-hover);
-	--color-status-watching-border: color-mix(in srgb, var(--color-accent) 35%, transparent);
-	--color-status-watched-bg: color-mix(
-		in srgb,
-		var(--color-positive) 22%,
-		var(--color-surface-raised)
-	);
-	--color-status-watched-text: var(--color-positive-strong);
+	/* Movie row status dots (Watching = blue, not accent red) */
+	--color-status-dot-want-ring: var(--color-border-strong);
+	--color-status-dot-watching-fill: #5078b8;
+	--color-status-dot-watched-fill: var(--color-positive);
 
 	/* Elevation */
 	--shadow-xs: 0 1px 2px rgba(31, 29, 27, 0.07);
@@ -127,17 +115,8 @@
 		--color-positive: #87c99f;
 		--color-positive-strong: #b3e3c9;
 
-		--color-status-want-bg: color-mix(
-			in srgb,
-			var(--color-text-muted) 18%,
-			var(--color-surface-raised)
-		);
-		--color-status-watching-border: color-mix(in srgb, var(--color-accent) 42%, transparent);
-		--color-status-watched-bg: color-mix(
-			in srgb,
-			var(--color-positive) 26%,
-			var(--color-surface-raised)
-		);
+		--color-status-dot-want-ring: var(--color-text-muted);
+		--color-status-dot-watching-fill: #8eb3e8;
 
 		--shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
 		--shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.38);
@@ -413,6 +392,38 @@ a:hover {
 	flex-wrap: wrap;
 }
 
+.movie-item-title-row {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-xs);
+	min-width: 0;
+	flex: 1;
+}
+
+.movie-status-dot {
+	flex-shrink: 0;
+	box-sizing: border-box;
+	width: 0.625rem;
+	height: 0.625rem;
+	border-radius: var(--radius-full);
+	margin-top: 0.4em;
+}
+
+.movie-status-dot--want_to_watch {
+	background: transparent;
+	border: 2px solid var(--color-status-dot-want-ring);
+}
+
+.movie-status-dot--watching {
+	background: var(--color-status-dot-watching-fill);
+	border: 2px solid transparent;
+}
+
+.movie-status-dot--watched {
+	background: var(--color-status-dot-watched-fill);
+	border: 2px solid transparent;
+}
+
 .movie-item-title {
 	margin: 0;
 	min-width: 0;
@@ -447,7 +458,7 @@ a:hover {
 	vertical-align: middle;
 	border-radius: var(--radius-full);
 	color: var(--ms-fg);
-	--ms-bg: var(--color-surface);
+	--ms-bg: var(--color-surface-raised);
 	--ms-fg: var(--color-text);
 	--ms-border: var(--color-border);
 }
@@ -465,24 +476,6 @@ a:hover {
 	transform: rotate(45deg);
 	opacity: 0.55;
 	pointer-events: none;
-}
-
-.movie-status-select-wrap--want_to_watch {
-	--ms-bg: var(--color-status-want-bg);
-	--ms-fg: var(--color-status-want-text);
-	--ms-border: color-mix(in srgb, var(--color-status-want-text) 32%, transparent);
-}
-
-.movie-status-select-wrap--watching {
-	--ms-bg: var(--color-status-watching-bg);
-	--ms-fg: var(--color-status-watching-text);
-	--ms-border: var(--color-status-watching-border);
-}
-
-.movie-status-select-wrap--watched {
-	--ms-bg: var(--color-status-watched-bg);
-	--ms-fg: var(--color-status-watched-text);
-	--ms-border: color-mix(in srgb, var(--color-status-watched-text) 35%, transparent);
 }
 
 .movie-status-select {
