@@ -1,14 +1,14 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import ThemeToggle from '$lib/ThemeToggle.svelte';
 
 	let { children } = $props();
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#e8e4df" media="(prefers-color-scheme: light)" />
-	<meta name="theme-color" content="#141312" media="(prefers-color-scheme: dark)" />
+	<meta name="theme-color" content="#0b0f17" data-watchlist-dynamic="true" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link
@@ -17,4 +17,7 @@
 	/>
 </svelte:head>
 
+<header class="app-top-bar">
+	<ThemeToggle />
+</header>
 {@render children()}
