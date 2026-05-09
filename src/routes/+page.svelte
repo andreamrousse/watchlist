@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { fade, fly } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
@@ -35,6 +37,11 @@
 	const STORAGE_KEY_WATCHLIST_VIEW = 'moviemate.watchlistView';
 
 	type WatchlistViewLayout = 'list' | 'grid';
+
+	/** Subtle watchlist item motion — short out so filtering stays responsive */
+	const WL_ITEM_IN = { y: 7, duration: 210, easing: cubicOut } as const;
+	const WL_ITEM_OUT = { duration: 130 } as const;
+	const WL_EMPTY = { duration: 175 } as const;
 
 	const SORT_OPTION_LABELS: Record<ListSortMode, string> = {
 		date_added: 'Date added',
@@ -621,31 +628,38 @@
 				</div>
 			</div>
 			{#if displayedMovies.length === 0}
-				<div class="watchlist-empty" role="status">
-					<div class="watchlist-empty-icon-wrap" aria-hidden="true">
-						<FilterX size={26} strokeWidth={1.5} class="watchlist-empty-icon icon-muted" />
+				{#key listStatusFilter}
+					<div
+						class="watchlist-empty"
+						role="status"
+						transition:fade={WL_EMPTY}
+					>
+						<div class="watchlist-empty-icon-wrap" aria-hidden="true">
+							<FilterX size={26} strokeWidth={1.5} class="watchlist-empty-icon icon-muted" />
+						</div>
+						<div class="watchlist-empty-body">
+							<p class="watchlist-empty-title">Nothing in this view</p>
+							<p class="watchlist-empty-detail">
+								{#if listStatusFilter !== 'all'}
+									You don't have anything marked {FILTER_TAB_LABELS[listStatusFilter]} yet. Try
+									another status tab, or add a title from search above.
+								{:else}
+									No titles match right now—try refreshing or adjusting your list above.
+								{/if}
+							</p>
+						</div>
 					</div>
-					<div class="watchlist-empty-body">
-						<p class="watchlist-empty-title">Nothing in this view</p>
-						<p class="watchlist-empty-detail">
-							{#if listStatusFilter !== 'all'}
-								You don't have anything marked {FILTER_TAB_LABELS[listStatusFilter]} yet. Try
-								another status tab, or add a title from search above.
-							{:else}
-								No titles match right now—try refreshing or adjusting your list above.
-							{/if}
-						</p>
-					</div>
-				</div>
+				{/key}
 			{:else}
-				<ul
-					class={watchlistViewLayout === 'grid' ? 'movie-grid' : 'movie-list'}
-					data-watchlist-layout={watchlistViewLayout}
-				>
+				{#key watchlistViewLayout}
+					<ul
+						class={watchlistViewLayout === 'grid' ? 'movie-grid' : 'movie-list'}
+						data-watchlist-layout={watchlistViewLayout}
+					>
 					{#each displayedMovies as m (m.id)}
 						{#if watchlistViewLayout === 'list'}
 							{@const listPoster = posterSrc(m.posterPath, 'w92')}
-							<li class="movie-item">
+							<li class="movie-item" in:fly={WL_ITEM_IN} out:fade={WL_ITEM_OUT}>
 								<div class="movie-item-row">
 									<div class="movie-item-main">
 										<div class="movie-item-thumb">
@@ -773,7 +787,7 @@
 							</li>
 						{:else}
 							{@const gridPoster = posterSrc(m.posterPath, 'w342')}
-							<li class="movie-grid-item">
+							<li class="movie-grid-item" in:fly={WL_ITEM_IN} out:fade={WL_ITEM_OUT}>
 								<div class="movie-grid-media">
 									{#if gridPoster}
 										<img
@@ -905,7 +919,8 @@
 							</li>
 						{/if}
 					{/each}
-				</ul>
+					</ul>
+				{/key}
 			{/if}
 		{/if}
 	</section>
