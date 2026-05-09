@@ -301,9 +301,12 @@
 								</form>
 								<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>
 									<input type="hidden" name="movieId" value={m.id} />
-									<button type="submit" class="button button-remove button-has-icon">
-										<Trash2 size={16} strokeWidth={1.65} aria-hidden="true" />
-										<span>Remove</span>
+									<button
+										type="submit"
+										class="button-remove button-has-icon"
+										aria-label="Remove from list"
+									>
+										<Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
 									</button>
 								</form>
 							</div>
