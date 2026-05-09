@@ -244,6 +244,34 @@ body {
 	flex-shrink: 0;
 }
 
+.app-footer {
+	box-sizing: border-box;
+	margin-top: var(--space-3xl);
+	border-top: var(--border-width) solid var(--color-border);
+	padding-block: var(--space-xl);
+	background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+}
+
+.app-footer-inner {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: var(--layout-page-max);
+	margin-inline: auto;
+	padding-inline: var(--layout-padding-inline);
+}
+
+.app-footer-attribution {
+	margin: 0;
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-relaxed);
+	color: var(--color-text-muted);
+	text-wrap: pretty;
+}
+
+.app-footer-link {
+	font-weight: var(--font-weight-medium);
+}
+
 .user-menu {
 	position: relative;
 	flex-shrink: 0;
@@ -464,7 +492,8 @@ a:hover {
 		padding-inline: var(--space-md);
 	}
 
-	.app-top-bar-inner {
+	.app-top-bar-inner,
+	.app-footer-inner {
 		padding-inline: var(--space-md);
 	}
 

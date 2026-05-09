@@ -36,3 +36,21 @@
 	</div>
 </header>
 {@render children()}
+
+<footer class="app-footer">
+	<div class="app-footer-inner">
+		<p class="app-footer-attribution">
+			Uses
+			<a
+				class="app-footer-link"
+				href="https://www.themoviedb.org/"
+				target="_blank"
+				rel="noopener noreferrer"
+				title="The Movie Database (TMDB)"
+			>
+				TMDB
+			</a>
+			for movie info. Moviemate is independent—not endorsed or certified by TMDB.
+		</p>
+	</div>
+</footer>
