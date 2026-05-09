@@ -38,10 +38,10 @@ export function applyDataTheme(theme: 'light' | 'dark'): void {
 	document.documentElement.style.setProperty('color-scheme', theme);
 }
 
-/** Match status bar tint to `--color-bg` for each resolved theme */
-export function updateThemeColorMeta(theme: 'light' | 'dark'): void {
+/** Match status bar tint to `html[data-theme] --color-bg` (tokens in app.css). */
+export function updateThemeColorMeta(): void {
 	const el = document.querySelector('meta[name="theme-color"][data-watchlist-dynamic]');
-	if (el instanceof HTMLMetaElement) {
-		el.content = theme === 'light' ? '#eef1f9' : '#0b0f17';
-	}
+	if (!(el instanceof HTMLMetaElement)) return;
+	const bg = getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim();
+	if (bg !== '') el.content = bg;
 }

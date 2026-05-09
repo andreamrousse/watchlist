@@ -19,7 +19,7 @@
 		const prefersLight = prefersColorSchemeLight();
 		const resolved = getResolvedTheme(pref, prefersLight);
 		applyDataTheme(resolved);
-		updateThemeColorMeta(resolved);
+		updateThemeColorMeta();
 	}
 
 	onMount(() => {
