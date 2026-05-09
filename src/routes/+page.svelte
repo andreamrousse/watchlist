@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
-	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, type MovieStatus } from '$lib/movie-status';
+	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, MOVIE_STATUS_SHORT_LABELS, type MovieStatus } from '$lib/movie-status';
 	import Film from 'lucide-svelte/icons/film';
 	import ImageOff from 'lucide-svelte/icons/image-off';
 	import Keyboard from 'lucide-svelte/icons/keyboard';
@@ -24,6 +24,7 @@
 
 	type ListStatusFilter = 'all' | MovieStatus;
 	type ListSortMode = 'date_added' | 'public_score' | 'alphabetically';
+	type MovieRow = PageServerData['movies'][number];
 
 	const SORT_OPTION_LABELS: Record<ListSortMode, string> = {
 		date_added: 'Date added',
@@ -35,9 +36,9 @@
 
 	const FILTER_TAB_LABELS: Record<ListStatusFilter, string> = {
 		all: 'All',
-		want_to_watch: 'Want',
-		watching: 'Watching',
-		watched: 'Watched'
+		want_to_watch: MOVIE_STATUS_SHORT_LABELS.want_to_watch,
+		watching: MOVIE_STATUS_SHORT_LABELS.watching,
+		watched: MOVIE_STATUS_SHORT_LABELS.watched
 	};
 
 	const FILTER_TAB_ARIA_HINT: Partial<Record<ListStatusFilter, string>> = {
@@ -96,6 +97,7 @@
 
 	let sortDropdownOpen = $state(false);
 	let sortDropdownEl: HTMLDivElement | undefined = $state();
+	let statusDropdownMovieId = $state<number | null>(null);
 
 	function publicScoreSortKey(movie: {
 		tmdbVoteAverage: number | null;
@@ -117,6 +119,10 @@
 
 			const sortEl = sortDropdownEl;
 			if (sortEl && !sortEl.contains(t)) sortDropdownOpen = false;
+
+			if (!(t instanceof Element) || !t.closest('[data-movie-status-dropdown]')) {
+				statusDropdownMovieId = null;
+			}
 		};
 		document.addEventListener('click', onDocClick, true);
 		return () => document.removeEventListener('click', onDocClick, true);
@@ -130,6 +136,28 @@
 	function chooseSort(mode: ListSortMode): void {
 		listSortMode = mode;
 		sortDropdownOpen = false;
+	}
+
+	function toggleMovieStatusDropdown(e: MouseEvent, movieId: number): void {
+		e.stopPropagation();
+		if (statusUpdatingId === movieId) return;
+		statusDropdownMovieId = statusDropdownMovieId === movieId ? null : movieId;
+	}
+
+	function chooseMovieStatus(e: MouseEvent, movie: MovieRow, status: MovieStatus): void {
+		e.stopPropagation();
+		statusDropdownMovieId = null;
+		if (movie.status === status) return;
+
+		const el = e.currentTarget;
+		if (!(el instanceof HTMLElement)) return;
+		const form = el.closest('form');
+		if (!(form instanceof HTMLFormElement)) return;
+
+		const hi = form.querySelector('input[name="status"]');
+		if (!(hi instanceof HTMLInputElement)) return;
+		hi.value = status;
+		form.requestSubmit();
 	}
 
 	async function runSuggest(raw: string) {
@@ -202,7 +230,10 @@
 
 <svelte:window
 	onkeydown={(e) => {
-		if (e.key === 'Escape') sortDropdownOpen = false;
+		if (e.key === 'Escape') {
+			sortDropdownOpen = false;
+			statusDropdownMovieId = null;
+		}
 	}}
 />
 
@@ -452,10 +483,6 @@
 									</div>
 									<div class="movie-item-meta">
 										<div class="movie-item-title-row">
-											<span
-												class={`movie-status-dot movie-status-dot--${m.status}`}
-												aria-hidden="true"
-											></span>
 											<span class="movie-item-title">{m.title}</span>
 										</div>
 										{#if m.tmdbVoteAverage != null && Number.isFinite(Number(m.tmdbVoteAverage))}
@@ -495,21 +522,50 @@
 										}}
 									>
 										<input type="hidden" name="movieId" value={m.id} />
-										<label class="sr-only" for={`movie-status-${m.id}`}>Status for {m.title}</label>
-										<div class="movie-status-select-wrap">
-											<select
-												id={`movie-status-${m.id}`}
-												name="status"
-												class="movie-status-select"
+										<input type="hidden" name="status" value={m.status} />
+										<span class="sr-only" id={`movie-status-lbl-${m.id}`}>Watch status for {m.title}</span>
+										<div
+											class={`movie-status-select-wrap movie-status-select-wrap--${m.status}`}
+											data-movie-status-dropdown
+										>
+											<button
+												type="button"
+												id={`movie-status-${m.id}-trigger`}
+												class="movie-status-select movie-status-dropdown-trigger"
+												aria-labelledby={`movie-status-lbl-${m.id} movie-status-${m.id}-trigger-value`}
+												aria-expanded={statusDropdownMovieId === m.id}
+												aria-haspopup="menu"
+												aria-controls={`movie-status-${m.id}-menu`}
 												disabled={statusUpdatingId === m.id}
-												onchange={(e) => e.currentTarget.form?.requestSubmit()}
+												onclick={(e) => toggleMovieStatusDropdown(e, m.id)}
 											>
-												{#each MOVIE_STATUSES as s (s)}
-													<option value={s} selected={s === m.status}
-														>{MOVIE_STATUS_LABELS[s]}</option
-													>
-												{/each}
-											</select>
+												<span class="movie-status-dropdown-trigger-value" id={`movie-status-${m.id}-trigger-value`}
+													>{MOVIE_STATUS_LABELS[m.status]}</span
+												>
+											</button>
+											{#if statusDropdownMovieId === m.id}
+												<div
+													id={`movie-status-${m.id}-menu`}
+													class="movie-status-dropdown-menu"
+													role="menu"
+													aria-labelledby={`movie-status-${m.id}-trigger`}
+												>
+													{#each MOVIE_STATUSES as s (s)}
+														<button
+															type="button"
+															class="movie-status-dropdown-item"
+															class:movie-status-dropdown-item--selected={s === m.status}
+															role="menuitemradio"
+															aria-checked={s === m.status}
+															onclick={(e) => chooseMovieStatus(e, m, s)}
+														>
+															<span class="movie-status-dropdown-item-label"
+																>{MOVIE_STATUS_LABELS[s]}</span
+															>
+														</button>
+													{/each}
+												</div>
+											{/if}
 										</div>
 									</form>
 									<form method="post" action="?/deleteMovie" class="movie-delete-form" use:enhance>

@@ -7,6 +7,13 @@ export const MOVIE_STATUS_LABELS: Record<MovieStatus, string> = {
 	watched: 'Watched'
 };
 
+/** Compact labels (e.g. list rows, filter tabs). */
+export const MOVIE_STATUS_SHORT_LABELS: Record<MovieStatus, string> = {
+	want_to_watch: 'Want',
+	watching: 'Watching',
+	watched: 'Watched'
+};
+
 export function isMovieStatus(value: string): value is MovieStatus {
 	return (MOVIE_STATUSES as readonly string[]).includes(value);
 }
