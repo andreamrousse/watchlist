@@ -3,15 +3,12 @@
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
 	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS } from '$lib/movie-status';
-	import Film from 'lucide-svelte/icons/film';
 	import CirclePlus from 'lucide-svelte/icons/circle-plus';
+	import Film from 'lucide-svelte/icons/film';
 	import ImageOff from 'lucide-svelte/icons/image-off';
 	import List from 'lucide-svelte/icons/list';
-	import LogOut from 'lucide-svelte/icons/log-out';
-	import Mail from 'lucide-svelte/icons/mail';
 	import Plus from 'lucide-svelte/icons/plus';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
-	import User from 'lucide-svelte/icons/user';
 
 	type SuggestHit = {
 		tmdbId: number;
@@ -32,9 +29,6 @@
 
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let abortSuggest: AbortController | undefined;
-
-	let displayName = $derived(data.user.name?.trim() || data.user.email);
-	let showEmailLine = $derived(Boolean(data.user.name?.trim()));
 
 	async function runSuggest(raw: string) {
 		const trimmed = raw.trim();
@@ -95,36 +89,10 @@
 </script>
 
 <svelte:head>
-	<title>Watchlist</title>
+	<title>Moviemate</title>
 </svelte:head>
 
 <main class="page">
-	<header class="shell-top">
-		<h1 class="brand-heading">
-			<Film size={22} strokeWidth={1.65} class="icon-muted" aria-hidden="true" />
-			Watchlist
-		</h1>
-
-		<div class="shell-session">
-			<div class="user-primary-row">
-				<User size={18} strokeWidth={1.65} class="icon-muted" aria-hidden="true" />
-				{displayName}
-			</div>
-			{#if showEmailLine}
-				<p class="muted user-email-secondary">
-					<Mail size={18} strokeWidth={1.65} class="icon-muted" aria-hidden="true" />
-					<span class="user-email-text">{data.user.email}</span>
-				</p>
-			{/if}
-			<form method="post" action="?/signOut">
-				<button type="submit" class="button button-secondary button-has-icon">
-					<LogOut size={18} strokeWidth={1.65} aria-hidden="true" />
-					<span>Sign out</span>
-				</button>
-			</form>
-		</div>
-	</header>
-
 	{#if form?.message}
 		<p class="error-text alert-global" role="alert">{form.message}</p>
 	{/if}

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { ActionData } from './$types';
-	import Film from 'lucide-svelte/icons/film';
 	import LogIn from 'lucide-svelte/icons/log-in';
 	import UserPlus from 'lucide-svelte/icons/user-plus';
 
@@ -9,14 +8,11 @@
 </script>
 
 <svelte:head>
-	<title>Sign in — Watchlist</title>
+	<title>Sign in — Moviemate</title>
 </svelte:head>
 
 <main class="page page-narrow">
-	<h1 class="brand-heading login-brand">
-		<Film size={22} strokeWidth={1.65} class="icon-muted" aria-hidden="true" />
-		Watchlist
-	</h1>
+	<h1 class="page-title login-brand">Sign in</h1>
 	<p class="muted login-lead">Sign in or create an account with email and password.</p>
 
 	<form method="post" action="?/signInEmail" class="stack" use:enhance>
