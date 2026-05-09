@@ -653,7 +653,22 @@ a:hover {
 	min-width: 12rem;
 	transition:
 		border-color var(--duration-fast) var(--ease-default),
-		box-shadow var(--duration-fast) var(--ease-default);
+		box-shadow var(--duration-fast) var(--ease-default),
+		background-color var(--duration-fast) var(--ease-default);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.input {
+		transition-duration: 0ms;
+	}
+}
+
+.input:hover:not(:disabled):not(:focus-visible) {
+	border-color: color-mix(in srgb, var(--color-accent) 26%, var(--color-border-strong));
+	background: color-mix(in srgb, var(--color-surface-raised) 94%, var(--color-accent) 6%);
+	box-shadow:
+		var(--shadow-xs),
+		0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 .input:focus {
