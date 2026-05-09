@@ -24,16 +24,26 @@
 	};
 
 	type ListStatusFilter = 'all' | MovieStatus;
-	type ListSortMode = 'date_added' | 'public_score' | 'alphabetically';
+	type ListSortMode = 'date_added' | 'release_year' | 'public_score' | 'alphabetically';
 	type MovieRow = PageServerData['movies'][number];
 
 	const SORT_OPTION_LABELS: Record<ListSortMode, string> = {
 		date_added: 'Date added',
+		release_year: 'Release year',
 		public_score: 'Average rating',
 		alphabetically: 'Alphabetically'
 	};
 
-	const SORT_MODES_ORDER: ListSortMode[] = ['date_added', 'public_score', 'alphabetically'];
+	const SORT_MODES_ORDER: ListSortMode[] = (
+		['date_added', 'release_year', 'public_score', 'alphabetically'] satisfies ListSortMode[]
+	)
+		.slice()
+		.sort((a, b) =>
+			SORT_OPTION_LABELS[a].localeCompare(SORT_OPTION_LABELS[b], undefined, {
+				sensitivity: 'base',
+				numeric: true
+			})
+		);
 
 	const FILTER_TAB_LABELS: Record<ListStatusFilter, string> = {
 		all: 'All',
@@ -94,6 +104,12 @@
 					});
 				return tie !== 0 ? tie : a.id - b.id;
 			}
+			if (sortMode === 'release_year') {
+				const diff = releaseYearSortKey(b) - releaseYearSortKey(a);
+				if (diff !== 0) return diff;
+				const d = createdAtMs(b) - createdAtMs(a);
+				return d !== 0 ? d : b.id - a.id;
+			}
 			if (sortMode === 'public_score') {
 				const diff = publicScoreSortKey(b) - publicScoreSortKey(a);
 				if (diff !== 0) return diff;
@@ -126,6 +142,16 @@
 	}): number {
 		if (movie.tmdbVoteAverage != null && Number.isFinite(Number(movie.tmdbVoteAverage))) {
 			return Number(movie.tmdbVoteAverage);
+		}
+		return -1;
+	}
+
+	/** Theatrical year from TMDB; missing or invalid sorts last when ordering newest-first. */
+	function releaseYearSortKey(movie: { releaseYear: string | null }): number {
+		const y = movie.releaseYear;
+		if (y != null && /^\d{4}$/.test(y)) {
+			const n = Number(y);
+			if (Number.isFinite(n)) return n;
 		}
 		return -1;
 	}
