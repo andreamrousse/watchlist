@@ -4,6 +4,7 @@
 	import type { ActionData, PageServerData } from './$types';
 	import { posterSrc } from '$lib/tmdb-images';
 	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, MOVIE_STATUS_SHORT_LABELS, type MovieStatus } from '$lib/movie-status';
+	import MovieStatusIcon from '$lib/MovieStatusIcon.svelte';
 	import FilterX from 'lucide-svelte/icons/filter-x';
 	import Film from 'lucide-svelte/icons/film';
 	import ImageOff from 'lucide-svelte/icons/image-off';
@@ -460,7 +461,10 @@
 								onclick={() => (listStatusFilter = f)}
 								{...FILTER_TAB_ARIA_HINT[f] ? { 'aria-label': FILTER_TAB_ARIA_HINT[f]! } : {}}
 							>
-								{label}
+								{#if f !== 'all'}
+									<MovieStatusIcon status={f} size={14} class="list-filter-tab-icon" />
+								{/if}
+								<span class="list-filter-tab-text">{label}</span>
 							</button>
 						{/each}
 					</div>
@@ -616,6 +620,7 @@
 												disabled={statusUpdatingId === m.id}
 												onclick={(e) => toggleMovieStatusDropdown(e, m.id)}
 											>
+												<MovieStatusIcon status={m.status} size={13} />
 												<span class="movie-status-dropdown-trigger-value" id={`movie-status-${m.id}-trigger-value`}
 													>{MOVIE_STATUS_LABELS[m.status]}</span
 												>
@@ -636,6 +641,7 @@
 															aria-checked={s === m.status}
 															onclick={(e) => chooseMovieStatus(e, m, s)}
 														>
+															<MovieStatusIcon status={s} size={14} />
 															<span class="movie-status-dropdown-item-label"
 																>{MOVIE_STATUS_LABELS[s]}</span
 															>

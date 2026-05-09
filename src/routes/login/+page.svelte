@@ -31,10 +31,6 @@
 				class="input"
 			/>
 		</div>
-		<div class="field">
-			<label for="name">Name <span class="muted">(when registering)</span></label>
-			<input id="name" name="name" type="text" autocomplete="name" class="input" />
-		</div>
 		<div class="button-row">
 			<button type="submit" class="button button-has-icon">
 				<LogIn size={18} strokeWidth={1.65} aria-hidden="true" />

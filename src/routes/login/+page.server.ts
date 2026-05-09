@@ -3,6 +3,13 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { APIError } from 'better-auth/api';
 
+function defaultNameFromEmail(email: string): string {
+	const trimmed = email.trim();
+	const local = trimmed.includes('@') ? trimmed.slice(0, trimmed.indexOf('@')) : trimmed;
+	const spaced = local.replace(/[._-]+/g, ' ').trim();
+	return spaced.length > 0 ? spaced : 'User';
+}
+
 export const load: PageServerLoad = (event) => {
 	if (event.locals.user) {
 		return redirect(302, '/');
@@ -37,7 +44,7 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const email = formData.get('email')?.toString() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
-		const name = formData.get('name')?.toString() ?? '';
+		const name = defaultNameFromEmail(email);
 
 		try {
 			await auth.api.signUpEmail({

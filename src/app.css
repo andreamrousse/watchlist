@@ -474,6 +474,12 @@ a:hover {
 	opacity: 0.85;
 }
 
+.movie-status-icon {
+	flex-shrink: 0;
+	display: block;
+	box-sizing: content-box;
+}
+
 /* Layout utilities — centered column, comfortable measure, spacing tokens */
 .page {
 	width: 100%;
@@ -864,6 +870,9 @@ a:hover {
 }
 
 .list-filter-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
 	font: inherit;
 	font-size: var(--font-size-sm);
 	font-weight: var(--font-weight-medium);
@@ -879,6 +888,15 @@ a:hover {
 		color var(--duration-fast) var(--ease-default),
 		background var(--duration-fast) var(--ease-default),
 		border-color var(--duration-fast) var(--ease-default);
+}
+
+.list-filter-tab-icon {
+	flex-shrink: 0;
+	opacity: 0.88;
+}
+
+.list-filter-tab[aria-selected='true'] .list-filter-tab-icon {
+	opacity: 1;
 }
 
 .list-filter-tab:hover {
@@ -1254,7 +1272,7 @@ a:hover {
 }
 
 .movie-status-select-wrap {
-	--movie-status-pill-max: 11.375rem;
+	--movie-status-pill-max: 12.25rem;
 	position: relative;
 	display: inline-flex;
 	align-items: center;
@@ -1348,11 +1366,15 @@ a:hover {
 	text-align: left;
 	width: 100%;
 	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
 	font-family: inherit;
 }
 
 .movie-status-dropdown-trigger-value {
 	display: block;
+	flex: 1 1 auto;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1382,6 +1404,7 @@ a:hover {
 .movie-status-dropdown-item {
 	display: flex;
 	align-items: center;
+	gap: 0.32rem;
 	width: 100%;
 	margin: 0;
 	padding: var(--space-2xs) var(--space-sm);
