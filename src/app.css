@@ -265,14 +265,27 @@ body {
 	max-width: var(--layout-page-max);
 	margin-inline: auto;
 	padding-inline: var(--layout-padding-inline);
+	text-align: center;
 }
 
-.app-footer-attribution {
+.app-footer-line {
+	display: inline-flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: baseline;
+	gap: 0 0.35em;
 	margin: 0;
+	text-align: center;
 	font-size: var(--font-size-sm);
 	line-height: var(--line-height-relaxed);
 	color: var(--color-text-muted);
 	text-wrap: pretty;
+}
+
+.app-footer-sep {
+	flex: 0 0 auto;
+	opacity: 0.55;
+	user-select: none;
 }
 
 .app-footer-link {

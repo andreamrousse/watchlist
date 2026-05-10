@@ -6,6 +6,8 @@
 	import Clapperboard from 'lucide-svelte/icons/clapperboard';
 
 	let { children, data } = $props();
+
+	const copyrightYear = new Date().getFullYear();
 </script>
 
 <svelte:head>
@@ -39,7 +41,9 @@
 
 <footer class="app-footer">
 	<div class="app-footer-inner">
-		<p class="app-footer-attribution">
+		<p class="app-footer-line">
+			© {copyrightYear} Moviemate. All rights reserved.
+			<span class="app-footer-sep" aria-hidden="true">·</span>
 			Uses
 			<a
 				class="app-footer-link"
@@ -50,7 +54,7 @@
 			>
 				TMDB
 			</a>
-			for movie info. Moviemate is independent—not endorsed or certified by TMDB.
+			data; not affiliated.
 		</p>
 	</div>
 </footer>
