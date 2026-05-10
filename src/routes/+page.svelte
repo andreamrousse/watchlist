@@ -5,7 +5,9 @@
 	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import type { ActionResult } from '@sveltejs/kit';
 	import type { ActionData, PageServerData } from './$types';
+	import { pageActionUrl, svelteKitActionPost } from '$lib/sveltekit-action-fetch';
 	import { posterSrc } from '$lib/tmdb-images';
 	import { MOVIE_STATUSES, MOVIE_STATUS_LABELS, MOVIE_STATUS_SHORT_LABELS, isMovieStatus, type MovieStatus } from '$lib/movie-status';
 	import MovieStatusIcon from '$lib/MovieStatusIcon.svelte';
@@ -22,6 +24,8 @@
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import LayoutGrid from 'lucide-svelte/icons/layout-grid';
 	import LayoutList from 'lucide-svelte/icons/layout-list';
+
+	/* ─── Types — API search hit, filters, undo payload ─── */
 
 	type SuggestHit = {
 		tmdbId: number;
@@ -44,7 +48,8 @@
 		status: MovieStatus;
 	};
 
-	function pickUndo(raw: unknown): DeleteUndoPayload | undefined {
+	/** Server returns opaque JSON for `undo`; narrow to fields we POST back to ?/addMovie. */
+	function parseDeleteUndo(raw: unknown): DeleteUndoPayload | undefined {
 		if (typeof raw !== 'object' || raw === null) return;
 		const r = raw as Record<string, unknown>;
 		if (typeof r.title !== 'string' || typeof r.tmdbId !== 'number' || typeof r.status !== 'string')
@@ -64,6 +69,9 @@
 	const STORAGE_KEY_WATCHLIST_VIEW = 'moviemate.watchlistView';
 
 	type WatchlistViewLayout = 'list' | 'grid';
+
+	/** How long each “removed…” toast stays before auto-dismiss (ms). */
+	const DELETE_TOAST_AUTO_DISMISS_MS = 8200;
 
 	/** Subtle watchlist item motion — short out so filtering stays responsive */
 	const WL_ITEM_IN = { y: 7, duration: 210, easing: cubicOut } as const;
@@ -106,6 +114,8 @@
 		...MOVIE_STATUSES.map((s): FilterTab => ({ filter: s, label: FILTER_TAB_LABELS[s] }))
 	];
 
+	/* ─── Watchlist helpers (sort/display) ─── */
+
 	function createdAtMs(movie: { createdAt: Date | string }): number {
 		const t = new Date(movie.createdAt).getTime();
 		return Number.isFinite(t) ? t : 0;
@@ -119,6 +129,8 @@
 	}
 
 	let { data, form }: { data: PageServerData; form?: ActionData } = $props();
+
+	/* ─── UI state ─── */
 
 	let listStatusFilter = $state<ListStatusFilter>('all');
 	let listSortMode = $state<ListSortMode>('date_added');
@@ -199,8 +211,10 @@
 		}
 	}
 
+	/** Bottom stacked toasts after remove; parallel timers in `deleteDismissTimers`. */
 	let deleteToastStack = $state<DeleteToastEntry[]>([]);
 	const deleteDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	/** Undo uses a full round-trip POST; avoid overlapping restores. */
 	let undoBusyId = $state<string | null>(null);
 
 	function dismissDeleteToast(id: string): void {
@@ -214,7 +228,7 @@
 	}
 
 	function dismissAllDeleteToasts(): void {
-		for (const id of deleteToastStack.map((e) => e.id)) {
+		for (const id of [...deleteDismissTimers.keys()]) {
 			const t = deleteDismissTimers.get(id);
 			if (t !== undefined) clearTimeout(t);
 			deleteDismissTimers.delete(id);
@@ -227,34 +241,38 @@
 		const id = crypto.randomUUID();
 		deleteDismissTimers.set(
 			id,
-			setTimeout(() => dismissDeleteToast(id), 8200)
+			setTimeout(() => dismissDeleteToast(id), DELETE_TOAST_AUTO_DISMISS_MS)
 		);
 		deleteToastStack = [...deleteToastStack, { id, removedTitle, undo }];
 	}
 
+	/** Wired to enhanced delete forms: after invalidate, opens toast from action JSON. */
 	function enhanceMovieDelete() {
 		return async ({
 			result,
 			update
 		}: {
-			result: import('@sveltejs/kit').ActionResult;
+			result: ActionResult;
 			update: () => Promise<void>;
 		}) => {
 			await update();
 			if (result.type !== 'success' || !result.data || typeof result.data !== 'object') return;
 			const d = result.data as Record<string, unknown>;
 			if (d.ok !== true || typeof d.removedTitle !== 'string') return;
-			showDeleteToast(d.removedTitle, pickUndo(d.undo));
+			showDeleteToast(d.removedTitle, parseDeleteUndo(d.undo));
 		};
 	}
 
+	/**
+	 * Re-add deleted row via same `addMovie` action the search form uses.
+	 * Must send the same headers as `use:enhance` fetch so Kit returns deserialize-able JSON.
+	 */
 	async function submitUndoDelete(id: string): Promise<void> {
 		const entry = deleteToastStack.find((x) => x.id === id);
 		if (!entry?.undo || undoBusyId !== null) return;
 		const u = entry.undo;
 		undoBusyId = id;
 		try {
-			const actionUrl = new URL(`${page.url.pathname}?/addMovie`, page.url.origin).href;
 			const body = new URLSearchParams({
 				title: u.title,
 				tmdbId: String(u.tmdbId),
@@ -262,17 +280,10 @@
 				releaseYear: u.releaseYear ?? '',
 				status: u.status,
 			});
-			const res = await fetch(actionUrl, {
-				method: 'POST',
-				headers: {
-					Accept: 'application/json',
-					'Content-Type': 'application/x-www-form-urlencoded',
-					'x-sveltekit-action': 'true',
-				},
-				body: body.toString(),
-				credentials: 'same-origin',
-				cache: 'no-store',
-			});
+			const res = await fetch(
+				pageActionUrl(page.url.pathname, page.url.origin, 'addMovie'),
+				svelteKitActionPost(body.toString())
+			);
 			const result = deserialize(await res.text());
 			if (result.type === 'success') {
 				await invalidateAll();

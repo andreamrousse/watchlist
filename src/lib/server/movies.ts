@@ -136,6 +136,10 @@ export async function listMoviesForUser(userId: string): Promise<MovieRow[]> {
 	}
 }
 
+/**
+ * Adds a TMDB-linked row (normal search submit or client “Undo” after delete).
+ * Omit `insertOpts` for new picks (DB default status). Pass `insertOpts.status` to restore watch state on undo.
+ */
 export async function createMovie(
 	userId: string,
 	rawTitle: string,
@@ -316,6 +320,9 @@ export type DeletedMovieUndo = {
 	status: MovieStatus;
 };
 
+/**
+ * Removes one row owned by `userId`. When `undo` is present the client may re-post to `addMovie` with those fields (TMDB restores only).
+ */
 export async function deleteMovieForUser(
 	userId: string,
 	rawId: FormDataEntryValue | null
